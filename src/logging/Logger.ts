@@ -143,11 +143,6 @@ export class Logger {
             return true
         }
 
-        // Always log error levelo logs, remove these lines to disable this!
-        if (level === 'error') {
-            return true
-        }
-
         const { mode, levels, keywords, regexPatterns } = filter
 
         const hasLevelRule = Array.isArray(levels) && levels.length > 0
