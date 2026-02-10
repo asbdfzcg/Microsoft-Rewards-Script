@@ -104,7 +104,7 @@ Edit `src/config.json` to customize behavior. Below are all currently available 
 | `workers.doDailySet`          | boolean | `true`  | Complete daily set          |
 | `workers.doSpecialPromotions` | boolean | `true`  | Complete special promotions |
 | `workers.doMorePromotions`    | boolean | `true`  | Complete more promotions    |
-| `workers.doPunchCards`        | boolean | `true`  | Complete punchcards (WIP)   |
+| `workers.doPunchCards`        | boolean | `true`  | Complete punchcards         |
 | `workers.doAppPromotions`     | boolean | `true`  | Complete app promotions     |
 | `workers.doDesktopSearch`     | boolean | `true`  | Perform desktop searches    |
 | `workers.doMobileSearch`      | boolean | `true`  | Perform mobile searches     |
