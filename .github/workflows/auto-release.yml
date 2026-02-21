@@ -103,6 +103,7 @@ jobs:
               if: steps.imgcheck.outputs.exists == 'true'
               run: |
                   echo "LOG: Docker image already exists for version ${{ steps.version.outputs.current }}. Nothing to do."
+                  exit 0
 
             - name: Set up QEMU
               if: steps.imgcheck.outputs.exists != 'true'
