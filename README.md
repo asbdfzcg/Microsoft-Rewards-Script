@@ -2,7 +2,6 @@
 [![Latest Build](https://img.shields.io/github/actions/workflow/status/TheNetsky/Microsoft-Rewards-Script/auto-release.yml?branch=v3&style=for-the-badge&label=Latest%20Build)](https://github.com/TheNetsky/Microsoft-Rewards-Script/actions/workflows/auto-release.yml)
 [![Docker](https://img.shields.io/badge/Docker-GHCR-blue?style=for-the-badge&logo=docker)](https://github.com/TheNetsky/Microsoft-Rewards-Script/pkgs/container/microsoft-rewards-script)
 
-
 > [!CAUTION]
 > V3.x does not support the new Bing Rewards interface!
 >
@@ -27,6 +26,7 @@
 Works on Windows, Linux, macOS, and WSL.
 
 ### Get the script
+
 ```bash
 git clone https://github.com/TheNetsky/Microsoft-Rewards-Script.git
 cd Microsoft-Rewards-Script
@@ -35,7 +35,7 @@ cd Microsoft-Rewards-Script
 Or, download the latest release ZIP and extract it.
 
 > [!TIP]
-> **Docker users:** optionally skip the clone step when using the prebuilt image. You only need a valid `accounts.json` and `config.json` locally. They can be placed anywhere. 
+> **Docker users:** optionally skip the clone step when using the prebuilt image. You only need a valid `accounts.json` and `config.json` locally. They can be placed anywhere.
 > Update the `volumes` section in [`compose.yaml`](./compose.yaml) to point to your files (e.g., `/your/path/to/accounts.json:/usr/src/microsoft-rewards-script/dist/accounts.json:ro`).
 
 ### Create accounts.json and config.json
@@ -53,6 +53,7 @@ Copy, rename, and edit your account and configuration files before deploying the
 > You must rebuild your script after making any changes to accounts.json and config.json.
 
 ### Build and run the script (bare metal)
+
 ```bash
 npm run pre-build
 npm run build
@@ -60,6 +61,7 @@ npm run start
 ```
 
 ### Build and run the script (Docker)
+
 ```bash
 docker compose up -d
 ```
