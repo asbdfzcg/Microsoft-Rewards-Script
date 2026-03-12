@@ -7,16 +7,15 @@ services:
             - ./config:/usr/src/microsoft-rewards-script/dist/config
             - ./sessions:/usr/src/microsoft-rewards-script/dist/browser/sessions
         environment:
-
             # ── Scheduling ───────────────────────────────────────────────────
             TZ: 'America/Toronto'
             NODE_ENV: 'production'
-            CRON_SCHEDULE: '0 7 * * *'   # use crontab.guru to customize your schedule
-            RUN_ON_START: 'true'          # run script immediately on container start
+            CRON_SCHEDULE: '0 7 * * *' # use crontab.guru to customize your schedule
+            RUN_ON_START: 'true' # run script immediately on container start
             SKIP_RANDOM_SLEEP: 'false'
             #MIN_SLEEP_MINUTES: "5"
             #MAX_SLEEP_MINUTES: "50"
-            #STUCK_PROCESS_TIMEOUT_HOURS: "8"  
+            #STUCK_PROCESS_TIMEOUT_HOURS: "8"
 
             # ── Accounts ─────────────────────────────────────────────────────
             ACCOUNT_1_EMAIL: ${ACCOUNT_1_EMAIL}
@@ -37,7 +36,7 @@ services:
 
             # ── Configuration ───────────────────────────────────────────────
             # Uncomment to override defaults, a full list of configuration options are in the README.
-            # 
+            #
             # General:
             #CONFIG_CLUSTERS: '1'
             #

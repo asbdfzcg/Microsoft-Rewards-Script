@@ -59,21 +59,24 @@ npm run start
 ```
 
 ### Docker
+
 - Copy the sample [`compose.yaml`](compose.yaml)
 - Copy and rename [`env.example`](env.example) to `.env` and add your account credentials:
+
 ```env
 ACCOUNT_1_EMAIL=you@example.com
 ACCOUNT_1_PASSWORD=your_password
 ```
+
 > [!NOTE]
 > A valid `accounts.json` is automatically created based on these values, and saved locally to `./config/`
 
-- Review `compose.yaml` to adjust scheduling, timezone, and config options. 
+- Review `compose.yaml` to adjust scheduling, timezone, and config options.
 
 > [!NOTE]
-> A valid `config.json` is auto-generated on first run using default values, and saved locally to `./config/`. 
-> Optionally, use `CONFIG_*` variables in the `environment:` section of the `compose.yaml` to customise your options (e.g., clusters, webhook). 
-> Commonly changed values are included in the sample `compose.yaml`, and a full list of configuration options are in [the table below](#configuration-options). 
+> A valid `config.json` is auto-generated on first run using default values, and saved locally to `./config/`.
+> Optionally, use `CONFIG_*` variables in the `environment:` section of the `compose.yaml` to customise your options (e.g., clusters, webhook).
+> Commonly changed values are included in the sample `compose.yaml`, and a full list of configuration options are in [the table below](#configuration-options).
 > Custom config values set in the `compose.yaml` are applied on every startup and always take precedence over `./config/config.json`.
 
 > [!TIP]
@@ -83,8 +86,9 @@ ACCOUNT_1_PASSWORD=your_password
 - Start the container: `docker compose up -d`
 
 > [!TIP]
-> Monitor logs with `docker logs microsoft-rewards-script`, useful for viewing passwordless login codes or diagnosing issues. 
+> Monitor logs with `docker logs microsoft-rewards-script`, useful for viewing passwordless login codes or diagnosing issues.
 > You can also enable a webhook in `compose.yaml` for notifications.
+
 ---
 
 ## Nix Setup
@@ -114,74 +118,72 @@ Edit `config.json` to customize behavior, or set `CONFIG_*` environment variable
 
 ### Workers
 
-| Setting                       | Type    | Default | Description                 | Docker environment variable          |
-| ----------------------------- | ------- | ------- | --------------------------- | ------------------------------------ |
-| `workers.doDailySet`          | boolean | `true`  | Complete daily set          | `CONFIG_WORKER_DAILY_SET`            |
-| `workers.doSpecialPromotions` | boolean | `true`  | Complete special promotions | `CONFIG_WORKER_SPECIAL_PROMOTIONS`   |
-| `workers.doMorePromotions`    | boolean | `true`  | Complete more promotions    | `CONFIG_WORKER_MORE_PROMOTIONS`      |
-| `workers.doPunchCards`        | boolean | `true`  | Complete punchcards         | `CONFIG_WORKER_PUNCH_CARDS`          |
-| `workers.doAppPromotions`     | boolean | `true`  | Complete app promotions     | `CONFIG_WORKER_APP_PROMOTIONS`       |
-| `workers.doDesktopSearch`     | boolean | `true`  | Perform desktop searches    | `CONFIG_WORKER_DESKTOP_SEARCH`       |
-| `workers.doMobileSearch`      | boolean | `true`  | Perform mobile searches     | `CONFIG_WORKER_MOBILE_SEARCH`        |
-| `workers.doDailyCheckIn`      | boolean | `true`  | Complete daily check-in     | `CONFIG_WORKER_DAILY_CHECKIN`        |
-| `workers.doReadToEarn`        | boolean | `true`  | Complete Read-to-Earn       | `CONFIG_WORKER_READ_TO_EARN`         |
+| Setting                       | Type    | Default | Description                 | Docker environment variable        |
+| ----------------------------- | ------- | ------- | --------------------------- | ---------------------------------- |
+| `workers.doDailySet`          | boolean | `true`  | Complete daily set          | `CONFIG_WORKER_DAILY_SET`          |
+| `workers.doSpecialPromotions` | boolean | `true`  | Complete special promotions | `CONFIG_WORKER_SPECIAL_PROMOTIONS` |
+| `workers.doMorePromotions`    | boolean | `true`  | Complete more promotions    | `CONFIG_WORKER_MORE_PROMOTIONS`    |
+| `workers.doPunchCards`        | boolean | `true`  | Complete punchcards         | `CONFIG_WORKER_PUNCH_CARDS`        |
+| `workers.doAppPromotions`     | boolean | `true`  | Complete app promotions     | `CONFIG_WORKER_APP_PROMOTIONS`     |
+| `workers.doDesktopSearch`     | boolean | `true`  | Perform desktop searches    | `CONFIG_WORKER_DESKTOP_SEARCH`     |
+| `workers.doMobileSearch`      | boolean | `true`  | Perform mobile searches     | `CONFIG_WORKER_MOBILE_SEARCH`      |
+| `workers.doDailyCheckIn`      | boolean | `true`  | Complete daily check-in     | `CONFIG_WORKER_DAILY_CHECKIN`      |
+| `workers.doReadToEarn`        | boolean | `true`  | Complete Read-to-Earn       | `CONFIG_WORKER_READ_TO_EARN`       |
 
 ### Search Settings
 
-| Setting                                | Type     | Default                                      | Description                         | Docker environment variable     |
-| -------------------------------------- | -------- | -------------------------------------------- | ----------------------------------- | ------------------------------- |
-| `searchSettings.scrollRandomResults`   | boolean  | `false`                                      | Scroll randomly on results          | `CONFIG_SEARCH_SCROLL_RANDOM`   |
-| `searchSettings.clickRandomResults`    | boolean  | `false`                                      | Click random links                  | `CONFIG_SEARCH_CLICK_RANDOM`    |
-| `searchSettings.parallelSearching`     | boolean  | `true`                                       | Run searches in parallel            | `CONFIG_SEARCH_PARALLEL`        |
-| `searchSettings.queryEngines`          | string[] | `["google", "wikipedia", "reddit", "local"]` | Query engines to use                |                                 |
-| `searchSettings.searchResultVisitTime` | string   | `"10sec"`                                    | Time to spend on each search result | `CONFIG_SEARCH_VISIT_TIME`      |
-| `searchSettings.searchDelay.min`       | string   | `"30sec"`                                    | Minimum delay between searches      | `CONFIG_SEARCH_DELAY_MIN`       |
-| `searchSettings.searchDelay.max`       | string   | `"1min"`                                     | Maximum delay between searches      | `CONFIG_SEARCH_DELAY_MAX`       |
-| `searchSettings.readDelay.min`         | string   | `"30sec"`                                    | Minimum delay for reading           | `CONFIG_SEARCH_READ_DELAY_MIN`  |
-| `searchSettings.readDelay.max`         | string   | `"1min"`                                     | Maximum delay for reading           | `CONFIG_SEARCH_READ_DELAY_MAX`  |
+| Setting                                | Type     | Default                                      | Description                         | Docker environment variable    |
+| -------------------------------------- | -------- | -------------------------------------------- | ----------------------------------- | ------------------------------ |
+| `searchSettings.scrollRandomResults`   | boolean  | `false`                                      | Scroll randomly on results          | `CONFIG_SEARCH_SCROLL_RANDOM`  |
+| `searchSettings.clickRandomResults`    | boolean  | `false`                                      | Click random links                  | `CONFIG_SEARCH_CLICK_RANDOM`   |
+| `searchSettings.parallelSearching`     | boolean  | `true`                                       | Run searches in parallel            | `CONFIG_SEARCH_PARALLEL`       |
+| `searchSettings.queryEngines`          | string[] | `["google", "wikipedia", "reddit", "local"]` | Query engines to use                |                                |
+| `searchSettings.searchResultVisitTime` | string   | `"10sec"`                                    | Time to spend on each search result | `CONFIG_SEARCH_VISIT_TIME`     |
+| `searchSettings.searchDelay.min`       | string   | `"30sec"`                                    | Minimum delay between searches      | `CONFIG_SEARCH_DELAY_MIN`      |
+| `searchSettings.searchDelay.max`       | string   | `"1min"`                                     | Maximum delay between searches      | `CONFIG_SEARCH_DELAY_MAX`      |
+| `searchSettings.readDelay.min`         | string   | `"30sec"`                                    | Minimum delay for reading           | `CONFIG_SEARCH_READ_DELAY_MIN` |
+| `searchSettings.readDelay.max`         | string   | `"1min"`                                     | Maximum delay for reading           | `CONFIG_SEARCH_READ_DELAY_MAX` |
 
 ### Logging
 
-| Setting                          | Type     | Default                | Description                       | Docker environment variable   |
-| -------------------------------- | -------- | ---------------------- | --------------------------------- | ----------------------------- |
-| `debugLogs`                      | boolean  | `false`                | Enable debug logging              | `CONFIG_DEBUG_LOGS`           |
-| `consoleLogFilter.enabled`       | boolean  | `false`                | Enable console log filtering      | `CONFIG_LOG_FILTER_ENABLED`   |
-| `consoleLogFilter.mode`          | string   | `"whitelist"`          | Filter mode (whitelist/blacklist) | `CONFIG_LOG_FILTER_MODE`      |
-| `consoleLogFilter.levels`        | string[] | `["error", "warn"]`    | Log levels to filter              | `CONFIG_LOG_FILTER_LEVELS`\*  |
-| `consoleLogFilter.keywords`      | string[] | `["starting account"]` | Keywords to filter                | `CONFIG_LOG_FILTER_KEYWORDS`\*|
-| `consoleLogFilter.regexPatterns` | string[] | `[]`                   | Regex patterns for filtering      |                               |
+| Setting                          | Type     | Default                | Description                       | Docker environment variable    |
+| -------------------------------- | -------- | ---------------------- | --------------------------------- | ------------------------------ |
+| `debugLogs`                      | boolean  | `false`                | Enable debug logging              | `CONFIG_DEBUG_LOGS`            |
+| `consoleLogFilter.enabled`       | boolean  | `false`                | Enable console log filtering      | `CONFIG_LOG_FILTER_ENABLED`    |
+| `consoleLogFilter.mode`          | string   | `"whitelist"`          | Filter mode (whitelist/blacklist) | `CONFIG_LOG_FILTER_MODE`       |
+| `consoleLogFilter.levels`        | string[] | `["error", "warn"]`    | Log levels to filter              | `CONFIG_LOG_FILTER_LEVELS`\*   |
+| `consoleLogFilter.keywords`      | string[] | `["starting account"]` | Keywords to filter                | `CONFIG_LOG_FILTER_KEYWORDS`\* |
+| `consoleLogFilter.regexPatterns` | string[] | `[]`                   | Regex patterns for filtering      |                                |
 
-> [!NOTE]
-> \* Docker `CONFIG_*` array values are comma-separated strings e.g. `"error,warn"`
+> [!NOTE] \* Docker `CONFIG_*` array values are comma-separated strings e.g. `"error,warn"`
 > Regex pattenrs must be entered directly in the `config.yaml`
 
 ### Proxy
 
-| Setting             | Type    | Default | Description                 | Docker environment variable|
-| ------------------- | ------- | ------- | --------------------------- | -------------------------- |
+| Setting             | Type    | Default | Description                 | Docker environment variable |
+| ------------------- | ------- | ------- | --------------------------- | --------------------------- |
 | `proxy.queryEngine` | boolean | `true`  | Proxy query engine requests | `CONFIG_PROXY_QUERY_ENGINE` |
 
 ### Webhooks
 
-| Setting                                  | Type     | Default                                              | Description                       | Docker environment variable              |
-| ---------------------------------------- | -------- | ---------------------------------------------------- | --------------------------------- | ---------------------------------------- |
-| `webhook.discord.enabled`                | boolean  | `false`                                              | Enable Discord webhook            | `CONFIG_DISCORD_ENABLED`                 |
-| `webhook.discord.url`                    | string   | `""`                                                 | Discord webhook URL               | `CONFIG_DISCORD_URL`                     |
-| `webhook.ntfy.enabled`                   | boolean  | `false`                                              | Enable ntfy notifications         | `CONFIG_NTFY_ENABLED`                    |
-| `webhook.ntfy.url`                       | string   | `""`                                                 | ntfy server URL                   | `CONFIG_NTFY_URL`                        |
-| `webhook.ntfy.topic`                     | string   | `""`                                                 | ntfy topic                        | `CONFIG_NTFY_TOPIC`                      |
-| `webhook.ntfy.token`                     | string   | `""`                                                 | ntfy authentication token         | `CONFIG_NTFY_TOKEN`                      |
-| `webhook.ntfy.title`                     | string   | `"Microsoft-Rewards-Script"`                         | Notification title                | `CONFIG_NTFY_TITLE`                      |
-| `webhook.ntfy.tags`                      | string[] | `["bot", "notify"]`                                  | Notification tags                 | `CONFIG_NTFY_TAGS` \*                    |
-| `webhook.ntfy.priority`                  | number   | `3`                                                  | Notification priority (1-5)       | `CONFIG_NTFY_PRIORITY`                   |
-| `webhook.webhookLogFilter.enabled`       | boolean  | `false`                                              | Enable webhook log filtering      | `CONFIG_WEBHOOK_LOG_FILTER_ENABLED`      |
-| `webhook.webhookLogFilter.mode`          | string   | `"whitelist"`                                        | Filter mode (whitelist/blacklist) | `CONFIG_WEBHOOK_LOG_FILTER_MODE`         |
-| `webhook.webhookLogFilter.levels`        | string[] | `["error"]`                                          | Log levels to send                | `CONFIG_WEBHOOK_LOG_FILTER_LEVELS` \*    |
-| `webhook.webhookLogFilter.keywords`      | string[] | `["starting account", "select number", "collected"]` | Keywords to filter                | `CONFIG_WEBHOOK_LOG_FILTER_KEYWORDS` \*  |
-| `webhook.webhookLogFilter.regexPatterns` | string[] | `[]`                                                 | Regex patterns for filtering      |                                          |
+| Setting                                  | Type     | Default                                              | Description                       | Docker environment variable             |
+| ---------------------------------------- | -------- | ---------------------------------------------------- | --------------------------------- | --------------------------------------- |
+| `webhook.discord.enabled`                | boolean  | `false`                                              | Enable Discord webhook            | `CONFIG_DISCORD_ENABLED`                |
+| `webhook.discord.url`                    | string   | `""`                                                 | Discord webhook URL               | `CONFIG_DISCORD_URL`                    |
+| `webhook.ntfy.enabled`                   | boolean  | `false`                                              | Enable ntfy notifications         | `CONFIG_NTFY_ENABLED`                   |
+| `webhook.ntfy.url`                       | string   | `""`                                                 | ntfy server URL                   | `CONFIG_NTFY_URL`                       |
+| `webhook.ntfy.topic`                     | string   | `""`                                                 | ntfy topic                        | `CONFIG_NTFY_TOPIC`                     |
+| `webhook.ntfy.token`                     | string   | `""`                                                 | ntfy authentication token         | `CONFIG_NTFY_TOKEN`                     |
+| `webhook.ntfy.title`                     | string   | `"Microsoft-Rewards-Script"`                         | Notification title                | `CONFIG_NTFY_TITLE`                     |
+| `webhook.ntfy.tags`                      | string[] | `["bot", "notify"]`                                  | Notification tags                 | `CONFIG_NTFY_TAGS` \*                   |
+| `webhook.ntfy.priority`                  | number   | `3`                                                  | Notification priority (1-5)       | `CONFIG_NTFY_PRIORITY`                  |
+| `webhook.webhookLogFilter.enabled`       | boolean  | `false`                                              | Enable webhook log filtering      | `CONFIG_WEBHOOK_LOG_FILTER_ENABLED`     |
+| `webhook.webhookLogFilter.mode`          | string   | `"whitelist"`                                        | Filter mode (whitelist/blacklist) | `CONFIG_WEBHOOK_LOG_FILTER_MODE`        |
+| `webhook.webhookLogFilter.levels`        | string[] | `["error"]`                                          | Log levels to send                | `CONFIG_WEBHOOK_LOG_FILTER_LEVELS` \*   |
+| `webhook.webhookLogFilter.keywords`      | string[] | `["starting account", "select number", "collected"]` | Keywords to filter                | `CONFIG_WEBHOOK_LOG_FILTER_KEYWORDS` \* |
+| `webhook.webhookLogFilter.regexPatterns` | string[] | `[]`                                                 | Regex patterns for filtering      |                                         |
 
-> [!NOTE]
-> \* Docker `CONFIG_*` array values are comma-separated strings e.g. `"error,warn"`
+> [!NOTE] \* Docker `CONFIG_*` array values are comma-separated strings e.g. `"error,warn"`
 > Regex pattenrs must be entered directly in the `config.yaml`
 
 > [!WARNING]
