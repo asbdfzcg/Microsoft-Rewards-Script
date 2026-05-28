@@ -188,7 +188,7 @@ export class SearchOnBing extends Workers {
             const formData = new URLSearchParams({
                 id: promotion.offerId,
                 hash: promotion.hash,
-                timeZone: '60',
+                timeZone: this.bot.userData.timezoneOffset,
                 activityAmount: '1',
                 dbs: '0',
                 form: '',
@@ -231,7 +231,7 @@ export class SearchOnBing extends Workers {
             queries: string[]
         }
 
-        let queries: Queries[] = []
+        let queries: Queries[]
 
         try {
             if (this.bot.config.searchOnBingLocalQueries) {

@@ -20,7 +20,7 @@ export class PasswordlessLogin {
                 const number = await numberElement.textContent()
                 return number?.trim() || null
             }
-        } catch (error) {
+        } catch {
             this.bot.logger.warn(this.bot.isMobile, 'LOGIN-PASSWORDLESS', 'Could not retrieve displayed number')
         }
         return null
@@ -59,7 +59,7 @@ export class PasswordlessLogin {
                 `Approval timeout after ${this.maxAttempts} seconds!`
             )
             return false
-        } catch (error: any) {
+        } catch (error) {
             this.bot.logger.error(
                 this.bot.isMobile,
                 'LOGIN-PASSWORDLESS',
