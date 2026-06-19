@@ -1,582 +1,1327 @@
 [
-    {
-        "title": "Houses near you",
-        "queries": [
-            "Houses near me",
-            "Homes for sale near me",
-            "Apartments near me",
-            "Real estate listings near me",
-            "Zillow homes near me",
-            "houses for rent near me"
-        ]
-    },
-    {
-        "title": "Feeling symptoms?",
-        "queries": [
-            "Rash on forearm",
-            "Stuffy nose",
-            "Tickling cough",
-            "sore throat remedies",
-            "headache and nausea causes",
-            "fever symptoms adults"
-        ]
-    },
-    {
-        "title": "Get your shopping done faster",
-        "queries": [
-            "Buy PS5",
-            "Buy Xbox",
-            "Chair deals",
-            "wireless mouse deals",
-            "best gaming headset price",
-            "laptop deals",
-            "buy office chair",
-            "SSD deals"
-        ]
-    },
-    {
-        "title": "Translate anything",
-        "queries": [
-            "Translate welcome home to Korean",
-            "Translate welcome home to Japanese",
-            "Translate goodbye to Japanese",
-            "Translate good morning to Spanish",
-            "Translate thank you to French",
-            "Translate see you later to Italian"
-        ]
-    },
-    {
-        "title": "Search the lyrics of a song",
-        "queries": [
-            "Debarge rhythm of the night lyrics",
-            "bohemian rhapsody lyrics",
-            "hotel california lyrics",
-            "blinding lights lyrics",
-            "lose yourself lyrics",
-            "smells like teen spirit lyrics"
-        ]
-    },
-    {
-        "title": "Let's watch that movie again!",
-        "queries": [
-            "Alien movie",
-            "Aliens movie",
-            "Alien 3 movie",
-            "Predator movie",
-            "Terminator movie",
-            "John Wick movie",
-            "Interstellar movie",
-            "The Matrix movie"
-        ]
-    },
-    {
-        "title": "Plan a quick getaway",
-        "queries": [
-            "Flights Amsterdam to Tokyo",
-            "Flights New York to Tokyo",
-            "cheap flights to paris",
-            "flights amsterdam to rome",
-            "last minute flight deals",
-            "direct flights from amsterdam",
-            "weekend getaway europe",
-            "best time to visit tokyo"
-        ]
-    },
-    {
-        "title": "Discover open job roles",
-        "queries": [
-            "jobs at Microsoft",
-            "Microsoft Job Openings",
-            "Jobs near me",
-            "jobs at Boeing worked",
-            "software engineer jobs near me",
-            "remote developer jobs",
-            "IT jobs netherlands",
-            "customer support jobs near me"
-        ]
-    },
-    {
-        "title": "You can track your package",
-        "queries": [
-            "USPS tracking",
-            "UPS tracking",
-            "DHL tracking",
-            "FedEx tracking",
-            "track my package",
-            "international package tracking"
-        ]
-    },
-    {
-        "title": "Find somewhere new to explore",
-        "queries": [
-            "Directions to Berlin",
-            "Directions to Tokyo",
-            "Directions to New York",
-            "things to do in berlin",
-            "tourist attractions tokyo",
-            "best places to visit in new york",
-            "hidden gems near me",
-            "day trips near me"
-        ]
-    },
-    {
-        "title": "Too tired to cook tonight?",
-        "queries": [
-            "KFC near me",
-            "Burger King near me",
-            "McDonalds near me",
-            "pizza delivery near me",
-            "restaurants open now",
-            "best takeout near me",
-            "quick dinner ideas",
-            "easy dinner recipes"
-        ]
-    },
-    {
-        "title": "Quickly convert your money",
-        "queries": [
-            "convert 250 USD to yen",
-            "convert 500 USD to yen",
-            "usd to eur",
-            "gbp to eur",
-            "eur to jpy",
-            "currency converter",
-            "exchange rate today",
-            "1000 yen to euro"
-        ]
-    },
-    {
-        "title": "Learn to cook a new recipe",
-        "queries": [
-            "How to cook ratatouille",
-            "How to cook lasagna",
-            "easy pasta recipe",
-            "how to make pancakes",
-            "how to make fried rice",
-            "simple chicken recipe"
-        ]
-    },
-    {
-        "title": "Find places to stay!",
-        "queries": [
-            "Hotels Berlin Germany",
-            "Hotels Amsterdam Netherlands",
-            "hotels in paris",
-            "best hotels in tokyo",
-            "cheap hotels london",
-            "places to stay in barcelona",
-            "hotel deals",
-            "booking hotels near me"
-        ]
-    },
-    {
-        "title": "How's the economy?",
-        "queries": [
-            "sp 500",
-            "nasdaq",
-            "dow jones today",
-            "inflation rate europe",
-            "interest rates today",
-            "stock market today",
-            "economic news",
-            "recession forecast"
-        ]
-    },
-    {
-        "title": "Who won?",
-        "queries": [
-            "braves score",
-            "champions league results",
-            "premier league results",
-            "nba score",
-            "formula 1 winner",
-            "latest football scores",
-            "ucl final winner",
-            "world cup final result"
-        ]
-    },
-    {
-        "title": "Gaming time",
-        "queries": [
-            "Overwatch video game",
-            "Call of duty video game",
-            "best games 2025",
-            "top xbox games",
-            "popular steam games",
-            "new pc games",
-            "game reviews",
-            "best co-op games"
-        ]
-    },
-    {
-        "title": "Expand your vocabulary",
-        "queries": [
-            "definition definition",
-            "meaning of serendipity",
-            "define nostalgia",
-            "synonym for happy",
-            "define eloquent",
-            "what does epiphany mean",
-            "word of the day",
-            "define immaculate"
-        ]
-    },
-    {
-        "title": "What time is it?",
-        "queries": [
-            "Japan time",
-            "New York time",
-            "time in london",
-            "time in tokyo",
-            "current time in amsterdam",
-            "time in los angeles"
-        ]
-    },
-    {
-        "title": "Find deals on Bing",
-        "queries": [
-            "best laptop deals",
-            "tech deals today",
-            "wireless earbuds deals",
-            "gaming chair deals",
-            "discount codes electronics",
-            "best amazon deals today",
-            "smartphone deals",
-            "ssd deals"
-        ]
-    },
-    {
-        "title": "Prepare for the weather",
-        "queries": [
-            "weather tomorrow",
-            "weekly weather forecast",
-            "rain forecast today",
-            "weather in amsterdam",
-            "storm forecast europe",
-            "uv index today",
-            "temperature this weekend",
-            "snow forecast"
-        ]
-    },
-    {
-        "title": "Track your delivery",
-        "queries": [
-            "track my package",
-            "postnl track and trace",
-            "dhl parcel tracking",
-            "ups tracking",
-            "fedex tracking",
-            "usps tracking",
-            "parcel tracking",
-            "international package tracking"
-        ]
-    },
-    {
-        "title": "Explore a new spot today",
-        "queries": [
-            "places to visit near me",
-            "things to do near me",
-            "hidden gems netherlands",
-            "best museums near me",
-            "parks near me",
-            "tourist attractions nearby",
-            "best cafes near me",
-            "day trip ideas"
-        ]
-    },
-    {
-        "title": "Maisons près de chez vous",
-        "queries": [
-            "Maisons près de chez moi",
-            "Maisons à vendre près de chez moi",
-            "Appartements près de chez moi",
-            "Annonces immobilières près de chez moi",
-            "Maisons à louer près de chez moi"
-        ]
-    },
-    {
-        "title": "Vous ressentez des symptômes ?",
-        "queries": [
-            "Éruption cutanée sur l'avant-bras",
-            "Nez bouché",
-            "Toux chatouilleuse",
-            "mal de gorge remèdes",
-            "maux de tête causes",
-            "symptômes de la grippe"
-        ]
-    },
-    {
-        "title": "Faites vos achats plus vite",
-        "queries": [
-            "Acheter une PS5",
-            "Acheter une Xbox",
-            "Offres sur les chaises",
-            "offres ordinateur portable",
-            "meilleures offres casque",
-            "acheter souris sans fil",
-            "promotions ssd",
-            "bons plans tech"
-        ]
-    },
-    {
-        "title": "Traduisez tout !",
-        "queries": [
-            "Traduction bienvenue à la maison en coréen",
-            "Traduction bienvenue à la maison en japonais",
-            "Traduction au revoir en japonais",
-            "Traduire bonjour en espagnol",
-            "Traduire merci en anglais",
-            "Traduire à plus tard en italien"
-        ]
-    },
-    {
-        "title": "Rechercher paroles de chanson",
-        "queries": [
-            "Paroles de Debarge rhythm of the night",
-            "paroles bohemian rhapsody",
-            "paroles hotel california",
-            "paroles blinding lights",
-            "paroles lose yourself",
-            "paroles smells like teen spirit"
-        ]
-    },
-    {
-        "title": "Et si nous regardions ce film une nouvelle fois?",
-        "queries": [
-            "Alien film",
-            "Film Aliens",
-            "Film Alien 3",
-            "Film Predator",
-            "Film Terminator",
-            "Film John Wick",
-            "Film Interstellar",
-            "Film Matrix"
-        ]
-    },
-    {
-        "title": "Planifiez une petite escapade",
-        "queries": [
-            "Vols Amsterdam-Tokyo",
-            "Vols New York-Tokyo",
-            "vols pas chers paris",
-            "vols amsterdam rome",
-            "offres vols dernière minute",
-            "week-end en europe",
-            "vols directs depuis amsterdam"
-        ]
-    },
-    {
-        "title": "Consulter postes à pourvoir",
-        "queries": [
-            "emplois chez Microsoft",
-            "Offres d'emploi Microsoft",
-            "Emplois près de chez moi",
-            "emplois chez Boeing",
-            "emplois développeur à distance",
-            "emplois informatique pays-bas",
-            "offres d'emploi près de chez moi"
-        ]
-    },
-    {
-        "title": "Vous pouvez suivre votre colis",
-        "queries": [
-            "Suivi Chronopost",
-            "suivi colis",
-            "suivi DHL",
-            "suivi UPS",
-            "suivi FedEx",
-            "suivi international colis"
-        ]
-    },
-    {
-        "title": "Trouver un endroit à découvrir",
-        "queries": [
-            "Itinéraire vers Berlin",
-            "Itinéraire vers Tokyo",
-            "Itinéraire vers New York",
-            "que faire à berlin",
-            "attractions tokyo",
-            "meilleurs endroits à visiter à new york",
-            "endroits à visiter près de chez moi"
-        ]
-    },
-    {
-        "title": "Trop fatigué pour cuisiner ce soir ?",
-        "queries": [
-            "KFC près de chez moi",
-            "Burger King près de chez moi",
-            "McDonalds près de chez moi",
-            "livraison pizza près de chez moi",
-            "restaurants ouverts maintenant",
-            "idées dîner rapide",
-            "quoi manger ce soir"
-        ]
-    },
-    {
-        "title": "Convertissez rapidement votre argent",
-        "queries": [
-            "convertir 250 EUR en yen",
-            "convertir 500 EUR en yen",
-            "usd en eur",
-            "gbp en eur",
-            "eur en jpy",
-            "convertisseur de devises",
-            "taux de change aujourd'hui",
-            "1000 yen en euro"
-        ]
-    },
-    {
-        "title": "Apprenez à cuisiner une nouvelle recette",
-        "queries": [
-            "Comment faire cuire la ratatouille",
-            "Comment faire cuire les lasagnes",
-            "recette pâtes facile",
-            "comment faire des crêpes",
-            "recette riz sauté",
-            "recette poulet simple"
-        ]
-    },
-    {
-        "title": "Trouvez des emplacements pour rester!",
-        "queries": [
-            "Hôtels Berlin Allemagne",
-            "Hôtels Amsterdam Pays-Bas",
-            "hôtels paris",
-            "meilleurs hôtels tokyo",
-            "hôtels pas chers londres",
-            "hébergement barcelone",
-            "offres hôtels",
-            "hôtels près de chez moi"
-        ]
-    },
-    {
-        "title": "Comment se porte l'économie ?",
-        "queries": [
-            "CAC 40",
-            "indice dax",
-            "dow jones aujourd'hui",
-            "inflation europe",
-            "taux d'intérêt aujourd'hui",
-            "marché boursier aujourd'hui",
-            "actualités économie",
-            "prévisions récession"
-        ]
-    },
-    {
-        "title": "Qui a gagné ?",
-        "queries": [
-            "score du Paris Saint-Germain",
-            "résultats ligue des champions",
-            "résultats premier league",
-            "score nba",
-            "vainqueur formule 1",
-            "derniers scores football",
-            "vainqueur finale ldc"
-        ]
-    },
-    {
-        "title": "Temps de jeu",
-        "queries": [
-            "Jeu vidéo Overwatch",
-            "Jeu vidéo Call of Duty",
-            "meilleurs jeux 2025",
-            "top jeux xbox",
-            "jeux steam populaires",
-            "nouveaux jeux pc",
-            "avis jeux vidéo",
-            "meilleurs jeux coop"
-        ]
-    },
-    {
-        "title": "Enrichissez votre vocabulaire",
-        "queries": [
-            "definition definition",
-            "signification sérendipité",
-            "définir nostalgie",
-            "synonyme heureux",
-            "définir éloquent",
-            "mot du jour",
-            "que veut dire épiphanie"
-        ]
-    },
-    {
-        "title": "Quelle heure est-il ?",
-        "queries": [
-            "Heure du Japon",
-            "Heure de New York",
-            "heure de londres",
-            "heure de tokyo",
-            "heure actuelle amsterdam",
-            "heure de los angeles"
-        ]
-    },
-    {
-        "title": "Vérifier la météo",
-        "queries": [
-            "Météo de Paris",
-            "Météo de la France",
-            "météo demain",
-            "prévisions météo semaine",
-            "météo amsterdam",
-            "risque de pluie aujourd'hui"
-        ]
-    },
-    {
-        "title": "Tenez-vous informé des sujets d'actualité",
-        "queries": [
-            "Augmentation Impots",
-            "Mort célébrité",
-            "actualités france",
-            "actualité internationale",
-            "dernières nouvelles économie",
-            "news technologie"
-        ]
-    },
-    {
-        "title": "Préparez-vous pour la météo",
-        "queries": [
-            "météo demain",
-            "prévisions météo semaine",
-            "météo amsterdam",
-            "risque de pluie aujourd'hui",
-            "indice uv aujourd'hui",
-            "température ce week-end",
-            "alerte tempête"
-        ]
-    },
-    {
-        "title": "Suivez votre livraison",
-        "queries": [
-            "suivi colis",
-            "postnl suivi colis",
-            "suivi DHL colis",
-            "suivi UPS",
-            "suivi FedEx",
-            "suivi international colis",
-            "suivre ma livraison"
-        ]
-    },
-    {
-        "title": "Trouvez des offres sur Bing",
-        "queries": [
-            "meilleures offres ordinateur portable",
-            "bons plans tech",
-            "promotions écouteurs",
-            "offres chaise gamer",
-            "codes promo électronique",
-            "meilleures offres amazon aujourd'hui"
-        ]
-    },
-    {
-        "title": "Explorez un nouvel endroit aujourd'hui",
-        "queries": [
-            "endroits à visiter près de chez moi",
-            "que faire près de chez moi",
-            "endroits insolites pays-bas",
-            "meilleurs musées près de chez moi",
-            "parcs près de chez moi",
-            "attractions touristiques à proximité",
-            "meilleurs cafés près de chez moi"
-        ]
-    }
+  {
+    "title": "Bank smarter",
+    "queries": [
+      "best checking account options",
+      "free checking account no monthly fee",
+      "how do I open a checking account online",
+      "high interest checking accounts",
+      "best bank for everyday spending",
+      "checking accounts with no minimum balance",
+      "compare checking account fees",
+      "student checking account",
+      "joint checking account for couples",
+      "best online only banks",
+      "checking account sign up bonus",
+      "checking vs savings account difference",
+      "credit union vs bank checking",
+      "checking account with no overdraft fees",
+      "best mobile banking app",
+      "switch banks checklist",
+      "business checking account for small business",
+      "checking account for teenagers",
+      "local banks with free checking",
+      "what is a good checking account"
+    ]
+  },
+  {
+    "title": "Catch the show",
+    "queries": [
+      "shows near me tonight",
+      "live music nearby this weekend",
+      "comedy shows in my area",
+      "concerts near me",
+      "theatre shows in the area",
+      "what's on this weekend nearby",
+      "stand up comedy tickets near me",
+      "musicals on tour",
+      "best shows to see live",
+      "local family events",
+      "magic show nearby",
+      "dinner and a show near me",
+      "open mic nights in my area",
+      "tribute bands playing nearby",
+      "gig listings around here",
+      "broadway show tickets",
+      "things to do tonight near me",
+      "cheap show tickets nearby",
+      "summer festivals in my area",
+      "where to buy concert tickets"
+    ]
+  },
+  {
+    "title": "Check options",
+    "queries": [
+      "internet plans near me",
+      "cheapest internet provider in my area",
+      "fastest home internet nearby",
+      "fibre broadband in my area",
+      "compare internet providers by address",
+      "internet and TV bundle deals",
+      "5G home internet",
+      "no contract internet deals",
+      "best WiFi for working from home",
+      "broadband deals for new customers",
+      "what internet speed do I need",
+      "unlimited home internet",
+      "rural internet options",
+      "switch broadband provider",
+      "student broadband deals",
+      "business internet in the area",
+      "internet for streaming and gaming",
+      "cheap WiFi for apartments",
+      "is fibre worth it",
+      "best value internet plan"
+    ]
+  },
+  {
+    "title": "Discover open job roles",
+    "queries": [
+      "open roles at Microsoft",
+      "jobs hiring near me",
+      "remote software engineer jobs",
+      "entry level IT jobs",
+      "part time jobs in my area",
+      "careers at Google",
+      "how to find a remote job",
+      "warehouse jobs hiring now",
+      "data analyst job openings",
+      "tech jobs in the Netherlands",
+      "customer service jobs from home",
+      "internships nearby",
+      "best job search websites",
+      "weekend jobs in the area",
+      "project manager vacancies",
+      "junior developer jobs",
+      "companies hiring near me",
+      "work from home jobs no experience",
+      "apply for jobs at Amazon",
+      "graduate jobs Netherlands"
+    ]
+  },
+  {
+    "title": "Drive your way",
+    "queries": [
+      "rental cars near me",
+      "cheap car hire in my area",
+      "car rental deals this weekend",
+      "airport car rental",
+      "one way car rental",
+      "SUV rental nearby",
+      "rent a van for a day",
+      "monthly car rental",
+      "compare car rental prices",
+      "electric car rental",
+      "luxury car hire",
+      "rent a car for a road trip",
+      "last minute car rental deals",
+      "automatic car hire nearby",
+      "car rental with unlimited mileage",
+      "best car rental company",
+      "rent a car under 30 a day",
+      "7 seater car rental",
+      "car hire at the airport",
+      "cheapest place to rent a car"
+    ]
+  },
+  {
+    "title": "Expand your vocabulary",
+    "queries": [
+      "meaning of serendipity",
+      "define ephemeral",
+      "what does ubiquitous mean",
+      "synonym for happy",
+      "antonym for generous",
+      "meaning of resilience",
+      "how to pronounce quinoa",
+      "define juxtaposition",
+      "what does candid mean",
+      "origin of the word quarantine",
+      "meaning of melancholy",
+      "difference between affect and effect",
+      "define meticulous",
+      "word of the day",
+      "what does nuance mean",
+      "synonym for important",
+      "meaning of nostalgia",
+      "define benevolent",
+      "what does pragmatic mean",
+      "another word for beautiful"
+    ]
+  },
+  {
+    "title": "Explore a new spot today",
+    "queries": [
+      "historical landmarks near me",
+      "things to do nearby today",
+      "hidden gems in my area",
+      "best places to visit in Amsterdam",
+      "tourist attractions in London",
+      "day trip ideas near me",
+      "museums nearby",
+      "scenic walks in the area",
+      "what to do this weekend nearby",
+      "free things to do near me",
+      "famous landmarks in Rome",
+      "best viewpoints around here",
+      "national parks near me",
+      "places to visit in the Netherlands",
+      "must see sights in Tokyo",
+      "off the beaten path Europe",
+      "castles to visit nearby",
+      "best beaches in the area",
+      "weekend getaway ideas",
+      "city break destinations in Europe"
+    ]
+  },
+  {
+    "title": "Find somewhere new to explore",
+    "queries": [
+      "historical landmarks near me",
+      "things to do nearby today",
+      "hidden gems in my area",
+      "best places to visit in Amsterdam",
+      "tourist attractions in London",
+      "day trip ideas near me",
+      "museums nearby",
+      "scenic walks in the area",
+      "what to do this weekend nearby",
+      "free things to do near me",
+      "famous landmarks in Rome",
+      "best viewpoints around here",
+      "national parks near me",
+      "places to visit in the Netherlands",
+      "must see sights in Tokyo",
+      "off the beaten path Europe",
+      "castles to visit nearby",
+      "best beaches in the area",
+      "weekend getaway ideas",
+      "city break destinations in Europe"
+    ]
+  },
+  {
+    "title": "Feeling symptoms?",
+    "queries": [
+      "symptoms of the flu",
+      "common cold symptoms in adults",
+      "why do I have a headache",
+      "symptoms of dehydration",
+      "sore throat remedies",
+      "symptoms of a sinus infection",
+      "food poisoning symptoms and duration",
+      "what causes a migraine",
+      "signs of low iron",
+      "symptoms of vitamin D deficiency",
+      "when to see a doctor for a fever",
+      "stomach pain after eating causes",
+      "how to get rid of a cough",
+      "cold vs flu symptoms",
+      "rash on arm causes",
+      "symptoms of high blood pressure",
+      "ear infection symptoms",
+      "is it allergies or a cold",
+      "how long does a cold last",
+      "home remedies for a sore throat"
+    ]
+  },
+  {
+    "title": "Find Deals on Bing",
+    "queries": [
+      "tool kit deals",
+      "best deals today",
+      "cordless drill deals",
+      "laptop deals this week",
+      "cheap gaming headset",
+      "vacuum cleaner offers",
+      "deal of the day",
+      "discount codes for electronics",
+      "office chair sale",
+      "best tech deals right now",
+      "power tools on sale",
+      "coffee machine deals",
+      "monitor deals",
+      "kitchen appliance offers",
+      "where to find online coupons",
+      "clearance sale electronics",
+      "best budget laptop deals",
+      "smartwatch on sale",
+      "weekend flash sales",
+      "cheap SSD deals"
+    ]
+  },
+  {
+    "title": "Find deals on Bing",
+    "queries": [
+      "tool kit deals",
+      "best deals today",
+      "cordless drill deals",
+      "laptop deals this week",
+      "cheap gaming headset",
+      "vacuum cleaner offers",
+      "deal of the day",
+      "discount codes for electronics",
+      "office chair sale",
+      "best tech deals right now",
+      "power tools on sale",
+      "coffee machine deals",
+      "monitor deals",
+      "kitchen appliance offers",
+      "where to find online coupons",
+      "clearance sale electronics",
+      "best budget laptop deals",
+      "smartwatch on sale",
+      "weekend flash sales",
+      "cheap SSD deals"
+    ]
+  },
+  {
+    "title": "Find places to stay",
+    "queries": [
+      "hotels near me",
+      "cheap hotels in Amsterdam",
+      "best hotels in London",
+      "pet friendly hotels nearby",
+      "hotels with free parking in the area",
+      "last minute hotel deals",
+      "boutique hotels near me",
+      "places to stay near the beach",
+      "family hotels with pool",
+      "bed and breakfast nearby",
+      "hostels in Berlin",
+      "holiday apartments in Barcelona",
+      "hotels near city centre",
+      "luxury hotels in Paris",
+      "where to stay in Rome",
+      "weekend hotel breaks",
+      "cheap accommodation in Europe",
+      "hotels with breakfast included",
+      "spa hotels in my area",
+      "self catering holiday rentals"
+    ]
+  },
+  {
+    "title": "Find places to stay!",
+    "queries": [
+      "hotels near me",
+      "cheap hotels in Amsterdam",
+      "best hotels in London",
+      "pet friendly hotels nearby",
+      "hotels with free parking in the area",
+      "last minute hotel deals",
+      "boutique hotels near me",
+      "places to stay near the beach",
+      "family hotels with pool",
+      "bed and breakfast nearby",
+      "hostels in Berlin",
+      "holiday apartments in Barcelona",
+      "hotels near city centre",
+      "luxury hotels in Paris",
+      "where to stay in Rome",
+      "weekend hotel breaks",
+      "cheap accommodation in Europe",
+      "hotels with breakfast included",
+      "spa hotels in my area",
+      "self catering holiday rentals"
+    ]
+  },
+  {
+    "title": "Find your next read",
+    "queries": [
+      "best books to read this year",
+      "bookstores near me",
+      "what to read after Harry Potter",
+      "best fantasy novels",
+      "popular thrillers right now",
+      "cosy mystery book recommendations",
+      "best non fiction books",
+      "easy reads for a holiday",
+      "book club picks",
+      "best sci fi books for beginners",
+      "second hand bookshops nearby",
+      "award winning novels",
+      "books everyone should read",
+      "best romance novels",
+      "audiobook recommendations",
+      "new book releases this month",
+      "best self improvement books",
+      "libraries in my area",
+      "books like The Hunger Games",
+      "best historical fiction"
+    ]
+  },
+  {
+    "title": "Freshen up your routine",
+    "queries": [
+      "best haircare products for dry hair",
+      "trending hair care products",
+      "shampoo for curly hair",
+      "skincare routine for beginners",
+      "best moisturiser for sensitive skin",
+      "how to get rid of frizzy hair",
+      "hair mask for damaged hair",
+      "morning skincare steps",
+      "affordable skincare brands",
+      "heat protectant spray",
+      "best face cleanser for daily use",
+      "self care routine ideas",
+      "how to build a skincare routine",
+      "hair oil for dry scalp",
+      "best body lotion for winter",
+      "anti frizz products",
+      "vitamin C serum benefits",
+      "natural hair care tips",
+      "grooming routine for men",
+      "best leave in conditioner"
+    ]
+  },
+  {
+    "title": "Glow up",
+    "queries": [
+      "best haircare products for dry hair",
+      "trending hair care products",
+      "shampoo for curly hair",
+      "skincare routine for beginners",
+      "best moisturiser for sensitive skin",
+      "how to get rid of frizzy hair",
+      "hair mask for damaged hair",
+      "morning skincare steps",
+      "affordable skincare brands",
+      "heat protectant spray",
+      "best face cleanser for daily use",
+      "self care routine ideas",
+      "how to build a skincare routine",
+      "hair oil for dry scalp",
+      "best body lotion for winter",
+      "anti frizz products",
+      "vitamin C serum benefits",
+      "natural hair care tips",
+      "grooming routine for men",
+      "best leave in conditioner"
+    ]
+  },
+  {
+    "title": "Gaming time",
+    "queries": [
+      "Minecraft explained",
+      "Halo Infinite review",
+      "Forza Horizon 5 review",
+      "Starfield review",
+      "best Xbox Series X games",
+      "Xbox Game Pass new games",
+      "Call of Duty system requirements",
+      "Elden Ring review",
+      "is Baldur's Gate 3 worth it",
+      "GTA 6 release date",
+      "best co-op games on Steam",
+      "how to play Valorant",
+      "best free games on PC",
+      "top rated Nintendo Switch games",
+      "best open world games",
+      "new game releases this month",
+      "best multiplayer games to play with friends",
+      "best single player games of all time",
+      "upcoming PC games",
+      "is Cyberpunk 2077 good now"
+    ]
+  },
+  {
+    "title": "Explore Videogames",
+    "queries": [
+      "Minecraft explained",
+      "Halo Infinite review",
+      "Forza Horizon 5 review",
+      "Starfield review",
+      "best Xbox Series X games",
+      "Xbox Game Pass new games",
+      "Call of Duty system requirements",
+      "Elden Ring review",
+      "is Baldur's Gate 3 worth it",
+      "GTA 6 release date",
+      "best co-op games on Steam",
+      "how to play Valorant",
+      "best free games on PC",
+      "top rated Nintendo Switch games",
+      "best open world games",
+      "new game releases this month",
+      "best multiplayer games to play with friends",
+      "best single player games of all time",
+      "upcoming PC games",
+      "is Cyberpunk 2077 good now"
+    ]
+  },
+  {
+    "title": "Explore videogames",
+    "queries": [
+      "Minecraft explained",
+      "Halo Infinite review",
+      "Forza Horizon 5 review",
+      "Starfield review",
+      "best Xbox Series X games",
+      "Xbox Game Pass new games",
+      "Call of Duty system requirements",
+      "Elden Ring review",
+      "is Baldur's Gate 3 worth it",
+      "GTA 6 release date",
+      "best co-op games on Steam",
+      "how to play Valorant",
+      "best free games on PC",
+      "top rated Nintendo Switch games",
+      "best open world games",
+      "new game releases this month",
+      "best multiplayer games to play with friends",
+      "best single player games of all time",
+      "upcoming PC games",
+      "is Cyberpunk 2077 good now"
+    ]
+  },
+  {
+    "title": "Get Creative",
+    "queries": [
+      "fun art supplies",
+      "art supplies near me",
+      "best supplies for beginner artists",
+      "watercolour set for beginners",
+      "acrylic paint starter kit",
+      "easy DIY craft ideas",
+      "sketchbook ideas",
+      "craft shops nearby",
+      "painting ideas for beginners",
+      "best markers for drawing",
+      "air dry clay projects",
+      "scrapbooking supplies",
+      "creative hobbies to try at home",
+      "art projects for kids",
+      "best brushes for acrylics",
+      "how to start digital art",
+      "calligraphy starter kit",
+      "cheap craft supplies online",
+      "knitting for beginners",
+      "pottery classes in my area"
+    ]
+  },
+  {
+    "title": "Hit the road",
+    "queries": [
+      "best new car deals",
+      "used cars for sale near me",
+      "cheapest cars to run",
+      "electric car deals",
+      "hybrid cars for sale",
+      "car finance deals",
+      "best small cars to buy",
+      "certified used cars nearby",
+      "SUV deals in the area",
+      "cars under 10000",
+      "most reliable used cars",
+      "car dealerships near me",
+      "compare car prices",
+      "best family cars",
+      "lease deals on cars",
+      "trade in my car value",
+      "best cars for new drivers",
+      "fuel efficient cars",
+      "automatic cars for sale",
+      "best cars for long commutes"
+    ]
+  },
+  {
+    "title": "How's the economy?",
+    "queries": [
+      "Apple stock price",
+      "Microsoft stock price today",
+      "Tesla share price",
+      "Nvidia stock price",
+      "S&P 500 today",
+      "Nasdaq today",
+      "Dow Jones today",
+      "stock market news today",
+      "current inflation rate",
+      "interest rates today",
+      "gold price today",
+      "oil price today",
+      "AEX index today",
+      "DAX index today",
+      "eurozone inflation rate",
+      "best performing stocks today",
+      "is a recession coming",
+      "mortgage rates today",
+      "FTSE 100 today",
+      "Bitcoin price today"
+    ]
+  },
+  {
+    "title": "Know your score",
+    "queries": [
+      "how to improve my credit score",
+      "check my credit score for free",
+      "what is a good credit score",
+      "why did my credit score drop",
+      "how to build credit history",
+      "free credit report",
+      "credit utilisation explained",
+      "fastest way to raise credit score",
+      "how does credit score work",
+      "credit score for a mortgage",
+      "best credit score apps",
+      "how to fix errors on credit report",
+      "what affects your credit score",
+      "credit score needed for a car loan",
+      "how often does credit score update",
+      "FICO vs credit score",
+      "does checking my credit hurt my score",
+      "credit monitoring services",
+      "how long does it take to build credit",
+      "tips to boost credit score fast"
+    ]
+  },
+  {
+    "title": "Learn Song Lyrics",
+    "queries": [
+      "Bing lyrics Bohemian Rhapsody",
+      "Bing lyrics Hotel California",
+      "Bing lyrics Blinding Lights",
+      "lyrics to Mr Brightside",
+      "Bing lyrics Wonderwall",
+      "Bing lyrics Sweet Caroline",
+      "Bing lyrics Don't Stop Believin",
+      "Bing lyrics Billie Jean",
+      "Bing lyrics Someone Like You",
+      "lyrics to Rolling in the Deep",
+      "Bing lyrics Smells Like Teen Spirit",
+      "Bing lyrics Take On Me",
+      "Bing lyrics Viva La Vida",
+      "Bing lyrics Bad Guy",
+      "Bing lyrics Flowers Miley Cyrus",
+      "Bing lyrics Anti Hero",
+      "Bing lyrics Stairway to Heaven",
+      "Bing lyrics Dancing Queen",
+      "Bing lyrics Yellow Coldplay",
+      "Bing lyrics Shape of You"
+    ]
+  },
+  {
+    "title": "Search the lyrics of a song",
+    "queries": [
+      "Bing lyrics Bohemian Rhapsody",
+      "Bing lyrics Hotel California",
+      "Bing lyrics Blinding Lights",
+      "lyrics to Mr Brightside",
+      "Bing lyrics Wonderwall",
+      "Bing lyrics Sweet Caroline",
+      "Bing lyrics Don't Stop Believin",
+      "Bing lyrics Billie Jean",
+      "Bing lyrics Someone Like You",
+      "lyrics to Rolling in the Deep",
+      "Bing lyrics Smells Like Teen Spirit",
+      "Bing lyrics Take On Me",
+      "Bing lyrics Viva La Vida",
+      "Bing lyrics Bad Guy",
+      "Bing lyrics Flowers Miley Cyrus",
+      "Bing lyrics Anti Hero",
+      "Bing lyrics Stairway to Heaven",
+      "Bing lyrics Dancing Queen",
+      "Bing lyrics Yellow Coldplay",
+      "Bing lyrics Shape of You"
+    ]
+  },
+  {
+    "title": "Lights, Camera, Action!",
+    "queries": [
+      "Oppenheimer cast",
+      "Dune Part Two cast",
+      "Interstellar cast",
+      "The Dark Knight cast",
+      "Inception cast",
+      "Gladiator cast",
+      "Terminator cast",
+      "new alien movie cast",
+      "Top Gun Maverick cast",
+      "The Godfather cast",
+      "Avengers Endgame cast",
+      "Titanic cast",
+      "The Matrix cast",
+      "John Wick cast",
+      "Jurassic Park cast",
+      "Joker cast",
+      "Back to the Future cast",
+      "Goodfellas cast",
+      "best movies to watch tonight",
+      "new movies streaming now"
+    ]
+  },
+  {
+    "title": "Let's watch that movie again!",
+    "queries": [
+      "Oppenheimer cast",
+      "Dune Part Two cast",
+      "Interstellar cast",
+      "The Dark Knight cast",
+      "Inception cast",
+      "Gladiator cast",
+      "Terminator cast",
+      "new alien movie cast",
+      "Top Gun Maverick cast",
+      "The Godfather cast",
+      "Avengers Endgame cast",
+      "Titanic cast",
+      "The Matrix cast",
+      "John Wick cast",
+      "Jurassic Park cast",
+      "Joker cast",
+      "Back to the Future cast",
+      "Goodfellas cast",
+      "best movies to watch tonight",
+      "new movies streaming now"
+    ]
+  },
+  {
+    "title": "Plan a quick getaway",
+    "queries": [
+      "cheap flights to Spain",
+      "weekend city breaks in Europe",
+      "flights to Italy",
+      "flights from Amsterdam to Barcelona",
+      "last minute weekend getaways",
+      "cheap flights to Paris",
+      "short break ideas in Europe",
+      "flights to Lisbon",
+      "best places for a weekend trip",
+      "flight and hotel packages",
+      "cheap flights to Greece",
+      "direct flights from Amsterdam",
+      "weekend trips from the Netherlands",
+      "flights to Rome",
+      "budget travel destinations",
+      "flights to Berlin",
+      "spa weekend breaks",
+      "cheap flights next month",
+      "city break deals",
+      "where to go for a long weekend"
+    ]
+  },
+  {
+    "title": "Plan your future",
+    "queries": [
+      "best personal loan rates",
+      "student loan options",
+      "personal loan calculator",
+      "how to apply for a personal loan",
+      "low interest personal loans",
+      "debt consolidation loans",
+      "student loan repayment plans",
+      "financial planning for beginners",
+      "how to make a five year plan",
+      "best savings account for goals",
+      "retirement planning basics",
+      "compare personal loan lenders",
+      "private student loan options",
+      "how much can I borrow",
+      "budgeting tips for beginners",
+      "saving for a house deposit",
+      "education loan options",
+      "personal loan vs credit card",
+      "best way to save for the future",
+      "investing for beginners"
+    ]
+  },
+  {
+    "title": "Prepare for the weather",
+    "queries": [
+      "weather in Amsterdam",
+      "weather tomorrow",
+      "weekend weather forecast",
+      "weather in London",
+      "will it rain tomorrow",
+      "10 day forecast",
+      "weather in New York",
+      "hourly weather forecast",
+      "weather in Tokyo",
+      "is it going to snow this week",
+      "weather radar",
+      "weather in Paris",
+      "UV index today",
+      "pollen count today",
+      "weather in Rome",
+      "temperature this weekend",
+      "storm warnings today",
+      "weather in Berlin",
+      "wind forecast today",
+      "weather in Barcelona"
+    ]
+  },
+  {
+    "title": "Protect what matters",
+    "queries": [
+      "best car insurance deals",
+      "compare home insurance",
+      "cheap car insurance for new drivers",
+      "life insurance quotes",
+      "pet insurance comparison",
+      "travel insurance for Europe",
+      "renters insurance explained",
+      "how much life insurance do I need",
+      "home and auto insurance bundle",
+      "best health insurance plans",
+      "contents insurance quotes",
+      "what insurance do I actually need",
+      "cheapest car insurance in my area",
+      "landlord insurance options",
+      "term vs whole life insurance",
+      "is gadget insurance worth it",
+      "compare insurance providers",
+      "car insurance for young drivers",
+      "best pet insurance for dogs",
+      "how to lower my insurance premium"
+    ]
+  },
+  {
+    "title": "Save more today",
+    "queries": [
+      "coupon codes for electronics",
+      "best deals today",
+      "discount codes for clothing",
+      "grocery coupons nearby",
+      "promo codes that actually work",
+      "cashback shopping apps",
+      "restaurant vouchers in my area",
+      "free shipping codes",
+      "student discount codes",
+      "where to find online coupons",
+      "best money saving websites",
+      "deals on home appliances",
+      "discount codes for shoes",
+      "weekly supermarket offers",
+      "cheap days out vouchers",
+      "coupons for pizza",
+      "best sales on right now",
+      "discount codes for travel",
+      "deals on beauty products",
+      "first order discount codes"
+    ]
+  },
+  {
+    "title": "Send a smile",
+    "queries": [
+      "same day flower delivery",
+      "send flowers online",
+      "florist near me",
+      "birthday flower delivery",
+      "cheap flower delivery",
+      "next day flowers",
+      "anniversary bouquet delivery",
+      "best flower delivery service",
+      "get well soon flowers",
+      "rose bouquet delivery",
+      "sympathy flowers delivery",
+      "flower subscription service",
+      "luxury bouquet delivery",
+      "flowers for Mother's Day",
+      "tulip bouquet delivery",
+      "local florist open now",
+      "flower delivery for a friend",
+      "thank you flowers",
+      "seasonal flower bouquets",
+      "letterbox flowers delivery"
+    ]
+  },
+  {
+    "title": "Set Sail",
+    "queries": [
+      "best cruise deals",
+      "Caribbean cruise deals",
+      "Mediterranean cruise from Barcelona",
+      "Alaska cruise packages",
+      "last minute cruise deals",
+      "river cruises in Europe",
+      "family cruise holidays",
+      "all inclusive cruise deals",
+      "cheap cruises this year",
+      "Norwegian fjords cruise",
+      "best cruise lines compared",
+      "cruises from Southampton",
+      "first time cruise tips",
+      "Disney cruise deals",
+      "cruises to the Bahamas",
+      "best time to book a cruise",
+      "cruise destinations for couples",
+      "Royal Caribbean deals",
+      "short cruise breaks",
+      "luxury cruise holidays"
+    ]
+  },
+  {
+    "title": "Shine bright",
+    "queries": [
+      "jewellery stores near me",
+      "engagement rings nearby",
+      "best place to buy gold jewellery",
+      "silver necklaces for women",
+      "diamond earrings",
+      "custom jewellery in my area",
+      "men's watches",
+      "affordable jewellery brands",
+      "jewellery repair close to me",
+      "birthstone necklace",
+      "wedding ring sets",
+      "where to buy a diamond ring",
+      "personalised jewellery",
+      "gold chain for men",
+      "ear piercing nearby",
+      "fine jewellery stores",
+      "jewellery gift ideas for her",
+      "best online jewellery shops",
+      "how to choose an engagement ring",
+      "local jewellers in the area"
+    ]
+  },
+  {
+    "title": "Sleep better",
+    "queries": [
+      "best mattress for back pain",
+      "top rated mattresses",
+      "memory foam vs hybrid mattress",
+      "mattress deals nearby",
+      "best mattress for side sleepers",
+      "how to sleep better at night",
+      "cooling mattress for hot sleepers",
+      "best pillows for neck pain",
+      "mattress in a box reviews",
+      "firm vs soft mattress",
+      "how to choose a mattress",
+      "best mattress for couples",
+      "queen mattress sale",
+      "tips for better sleep",
+      "best mattress brands",
+      "bed frames in my area",
+      "mattress sizes explained",
+      "organic mattress options",
+      "how often to replace a mattress",
+      "best mattress for stomach sleepers"
+    ]
+  },
+  {
+    "title": "Stream your favorites",
+    "queries": [
+      "best streaming services compared",
+      "Netflix plans and prices",
+      "Disney Plus subscription cost",
+      "what to watch tonight",
+      "new shows on Netflix",
+      "best streaming service for movies",
+      "cheapest streaming services",
+      "Amazon Prime Video cost",
+      "streaming bundles compared",
+      "best documentaries to stream",
+      "free streaming services",
+      "Apple TV Plus shows",
+      "best anime streaming sites",
+      "new movies streaming now",
+      "HBO Max vs Netflix",
+      "streaming services with live sport",
+      "Paramount Plus shows",
+      "best series to binge watch",
+      "how to save money on streaming",
+      "best family streaming service"
+    ]
+  },
+  {
+    "title": "Swipe smart",
+    "queries": [
+      "best rewards credit cards",
+      "best cashback credit card",
+      "travel credit cards with no fees",
+      "credit cards with no annual fee",
+      "best balance transfer cards",
+      "student credit cards",
+      "credit cards for building credit",
+      "best credit card sign up bonus",
+      "airline miles credit cards",
+      "how to choose a credit card",
+      "0% interest credit cards",
+      "best credit card for everyday spending",
+      "credit cards for beginners",
+      "compare credit card rewards",
+      "best credit card for groceries",
+      "secured credit card explained",
+      "credit card points explained",
+      "hotel rewards credit cards",
+      "best low interest credit card",
+      "credit card vs debit card"
+    ]
+  },
+  {
+    "title": "Take off soon",
+    "queries": [
+      "cheap flights to Japan",
+      "affordable flights to New York",
+      "best budget airlines",
+      "cheap flights to Thailand",
+      "flight price tracker",
+      "cheap international flights",
+      "flights to Dubai",
+      "best time to book flights",
+      "flights to Bali",
+      "cheap long haul flights",
+      "flights to Los Angeles",
+      "error fares and flight deals",
+      "flights to Singapore",
+      "cheapest day to fly",
+      "flights to New York deals",
+      "student flight discounts",
+      "flights to Australia",
+      "how to find cheap flights",
+      "flights to Canada",
+      "flights to Iceland"
+    ]
+  },
+  {
+    "title": "Talk, text, save",
+    "queries": [
+      "best mobile phone plans",
+      "cheap SIM only deals",
+      "unlimited data plans",
+      "family mobile plans",
+      "best prepaid phone plans",
+      "no contract phone plans",
+      "compare mobile providers",
+      "best network coverage in my area",
+      "cheapest plan with unlimited data",
+      "phone and contract deals",
+      "5G mobile plans",
+      "SIM only vs contract",
+      "best mobile plan for one person",
+      "international roaming plans",
+      "data only SIM plans",
+      "business mobile plans",
+      "best value mobile deals",
+      "phone plans with hotspot",
+      "pay as you go deals",
+      "how to switch mobile providers"
+    ]
+  },
+  {
+    "title": "Track your delivery",
+    "queries": [
+      "UPS tracking",
+      "FedEx tracking",
+      "DHL parcel tracking",
+      "USPS tracking",
+      "PostNL track and trace",
+      "Amazon order tracking",
+      "where is my package",
+      "DPD tracking",
+      "Royal Mail tracking",
+      "track my parcel by number",
+      "GLS tracking",
+      "track and trace Netherlands",
+      "AliExpress order tracking",
+      "Evri tracking",
+      "China Post tracking",
+      "how to track a package without a number",
+      "international parcel tracking",
+      "delivery status today",
+      "track my online order",
+      "Hermes parcel tracking"
+    ]
+  },
+  {
+    "title": "You can track your package",
+    "queries": [
+      "UPS tracking",
+      "FedEx tracking",
+      "DHL parcel tracking",
+      "USPS tracking",
+      "PostNL track and trace",
+      "Amazon order tracking",
+      "where is my package",
+      "DPD tracking",
+      "Royal Mail tracking",
+      "track my parcel by number",
+      "GLS tracking",
+      "track and trace Netherlands",
+      "AliExpress order tracking",
+      "Evri tracking",
+      "China Post tracking",
+      "how to track a package without a number",
+      "international parcel tracking",
+      "delivery status today",
+      "track my online order",
+      "Hermes parcel tracking"
+    ]
+  },
+  {
+    "title": "Translate anything",
+    "queries": [
+      "translate hello to Spanish",
+      "translate thank you to German",
+      "translate good morning to Japanese",
+      "how do you say cheers in Italian",
+      "translate goodbye to Korean",
+      "translate I love you to French",
+      "what is water in Spanish",
+      "translate where is the station to German",
+      "translate good night to Portuguese",
+      "translate happy birthday to Dutch",
+      "how to say please in Japanese",
+      "translate excuse me to Italian",
+      "translate nice to meet you to Chinese",
+      "what does hola mean",
+      "translate see you tomorrow to Spanish",
+      "translate coffee to Italian",
+      "how do you say thank you in Arabic",
+      "translate good luck to German",
+      "what is hello in Korean",
+      "translate sorry to Japanese"
+    ]
+  },
+  {
+    "title": "Treat your pet",
+    "queries": [
+      "best dog food brands",
+      "best cat food brands",
+      "pet food delivery near me",
+      "grain free dog food",
+      "puppy food guide",
+      "wet vs dry cat food",
+      "dog treats nearby",
+      "pet supplies in my area",
+      "best food for senior dogs",
+      "automatic pet feeder",
+      "cat litter deals",
+      "dog toys for chewers",
+      "kitten food recommendations",
+      "pet grooming nearby",
+      "dog beds in the area",
+      "best cat toys",
+      "natural dog food",
+      "dog leash and harness set",
+      "how much to feed my dog",
+      "local pet store"
+    ]
+  },
+  {
+    "title": "Too tired to cook?",
+    "queries": [
+      "restaurants near me",
+      "food delivery nearby",
+      "pizza near me",
+      "best takeaway in the area",
+      "Chinese food nearby",
+      "sushi delivery near me",
+      "Indian restaurants in my area",
+      "restaurants open now nearby",
+      "burgers near me",
+      "cheap eats in the area",
+      "Thai food near me",
+      "best restaurants nearby",
+      "late night food in my area",
+      "family restaurants nearby",
+      "Mexican food near me",
+      "healthy takeaway in the area",
+      "fast food near me",
+      "dinner delivery nearby",
+      "best rated restaurants in my area",
+      "breakfast places near me"
+    ]
+  },
+  {
+    "title": "Upgrade your space",
+    "queries": [
+      "home improvement ideas",
+      "small room makeover ideas",
+      "DIY home projects for the weekend",
+      "kitchen renovation ideas",
+      "bathroom upgrade ideas",
+      "living room makeover on a budget",
+      "home office setup ideas",
+      "best paint colours for living room",
+      "storage ideas for small spaces",
+      "smart home gadgets",
+      "how to make a room look bigger",
+      "modern interior design ideas",
+      "home decor on a budget",
+      "garden makeover ideas",
+      "bedroom design ideas",
+      "lighting ideas for the home",
+      "home improvement stores nearby",
+      "best tools for DIY",
+      "feature wall ideas",
+      "how to declutter your home"
+    ]
+  },
+  {
+    "title": "What's New?",
+    "queries": [
+      "latest news today",
+      "breaking news",
+      "world news today",
+      "technology news",
+      "business news today",
+      "sports news",
+      "local news in my area",
+      "top headlines today",
+      "science news",
+      "entertainment news",
+      "politics news today",
+      "what's happening in the news",
+      "finance news today",
+      "health news",
+      "gaming news",
+      "trending news now",
+      "current events today",
+      "weather news",
+      "travel news",
+      "tech news this week"
+    ]
+  },
+  {
+    "title": "What time is it?",
+    "queries": [
+      "time in Japan",
+      "time in New York",
+      "time in London",
+      "current time in Sydney",
+      "time in Los Angeles",
+      "what time is it in Tokyo",
+      "time in Dubai",
+      "time zone in India",
+      "time in Singapore",
+      "current time in Chicago",
+      "time difference between London and New York",
+      "time in Toronto",
+      "what time is it in California",
+      "time in Hong Kong",
+      "time in Berlin",
+      "world clock",
+      "time in Mexico City",
+      "current time in Amsterdam",
+      "time in Bangkok",
+      "time in Cape Town"
+    ]
+  },
+  {
+    "title": "Who won?",
+    "queries": [
+      "Lakers vs Celtics score",
+      "latest NBA scores",
+      "Barcelona vs Real Madrid result",
+      "Premier League results today",
+      "Manchester United score",
+      "Formula 1 race results",
+      "Champions League results",
+      "Arsenal vs Chelsea score",
+      "latest NFL scores",
+      "Ajax score today",
+      "tennis results today",
+      "Chiefs vs Eagles score",
+      "Liverpool vs Man City score",
+      "latest football scores",
+      "PSV score",
+      "UFC results last night",
+      "Bayern Munich vs Dortmund score",
+      "NHL scores today",
+      "cricket score today",
+      "Yankees vs Red Sox score"
+    ]
+  },
+  {
+    "title": "Houses near you",
+    "queries": [
+      "houses for sale near me",
+      "homes for rent nearby",
+      "apartments in my area",
+      "cheap houses for sale near me",
+      "open houses nearby",
+      "new build homes in the area",
+      "property prices in my area",
+      "real estate agents near me",
+      "mortgage calculator",
+      "first time buyer schemes",
+      "two bedroom apartments nearby",
+      "houses with a garden near me",
+      "condos for sale in the area",
+      "best neighbourhoods nearby",
+      "rent to own homes",
+      "studio apartments near me",
+      "house prices in my area",
+      "homes with a garage nearby",
+      "how much house can I afford",
+      "average rent in my area"
+    ]
+  },
+  {
+    "title": "Get your shopping done faster",
+    "queries": [
+      "best wireless mouse",
+      "laptop deals today",
+      "best gaming headset",
+      "buy office chair online",
+      "best coffee machine",
+      "wireless earbuds reviews",
+      "best running shoes",
+      "Surface Pro deals",
+      "buy Xbox controller",
+      "phone case for iPhone",
+      "same day grocery delivery",
+      "best budget monitor",
+      "mechanical keyboard reviews",
+      "best gifts under 50",
+      "where to buy a PS5",
+      "air fryer deals",
+      "best smartwatch",
+      "noise cancelling headphones",
+      "best tablet for the money",
+      "standing desk deals"
+    ]
+  },
+  {
+    "title": "Quickly convert your money",
+    "queries": [
+      "convert 100 USD to EUR",
+      "convert 500 EUR to USD",
+      "USD to EUR exchange rate",
+      "convert 250 GBP to EUR",
+      "GBP to USD exchange rate",
+      "convert 1000 USD to JPY",
+      "EUR to GBP exchange rate",
+      "how much is 50 euros in dollars",
+      "convert 100 EUR to GBP",
+      "USD to CAD exchange rate",
+      "convert 10000 JPY to EUR",
+      "AUD to USD exchange rate",
+      "how much is 100 dollars in pounds",
+      "Bitcoin to EUR",
+      "convert 200 USD to AUD",
+      "EUR to CHF exchange rate",
+      "dollar to euro rate today",
+      "convert 75 GBP to USD",
+      "yen to euro exchange rate",
+      "pound to euro rate"
+    ]
+  },
+  {
+    "title": "Learn to cook a new recipe",
+    "queries": [
+      "how to make pancakes",
+      "easy pasta recipe",
+      "how to cook salmon",
+      "homemade pizza recipe",
+      "quick dinner ideas",
+      "how to make fried rice",
+      "best chocolate chip cookies recipe",
+      "vegetarian dinner recipes",
+      "how to cook a steak",
+      "easy soup recipes",
+      "how to make carbonara",
+      "healthy meal prep ideas",
+      "how to make curry from scratch",
+      "30 minute meals",
+      "how to bake bread at home",
+      "easy dessert recipes",
+      "how to make sushi at home",
+      "one pot pasta recipe",
+      "air fryer recipes",
+      "how to make tacos"
+    ]
+  }
 ]
