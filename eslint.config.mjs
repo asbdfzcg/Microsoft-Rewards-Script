@@ -22,7 +22,7 @@ export default tseslint.config(
             '@typescript-eslint/no-explicit-any': ['warn', { fixToUnknown: false }],
             'prefer-arrow-callback': 'error',
             'no-empty': 'off',
-            "preserve-caught-error": "off",
+            'preserve-caught-error': 'off'
         }
     },
     // Must come last: disables ESLint rules that conflict with Prettier formatting
