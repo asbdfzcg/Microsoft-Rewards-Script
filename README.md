@@ -4,7 +4,7 @@
 
 > [!TIP]
 > This version supports the **new, modern Bing Rewards dashboard only** - it does **not** support the legacy dashboard.
-> If your account still uses the old dashboard, use the [v3 branch](https://github.com/TheNetsky/Microsoft-Rewards-Script/tree/v3) instead.
+> If your account still uses the old dashboard, use the [v3 branch](https://github.com/TheNetsky/Microsoft-Rewards-Script/tree/v3) and v3.x releases instead!
 >
 > Use at your own risk - some features may not work as expected.
 
