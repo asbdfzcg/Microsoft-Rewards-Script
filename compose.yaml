@@ -1,9 +1,9 @@
 services:
     microsoft-rewards-script:
-        # image: ghcr.io/thenetsky/microsoft-rewards-script:latest
+        image: ghcr.io/thenetsky/microsoft-rewards-script:4
         # To build locally instead of pulling the prebuilt image, use the build section below.
-        build:
-            context: .
+        #build:
+        #    context: .
         container_name: microsoft-rewards-script
         restart: unless-stopped
         volumes:
