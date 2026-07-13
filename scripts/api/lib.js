@@ -30,10 +30,19 @@ export function parseArgs(argv = process.argv.slice(2)) {
 
 export function getProjectRoot(startDir) {
     let dir = startDir
+    let nearestPackageDir = null
     while (dir !== path.parse(dir).root) {
-        if (fs.existsSync(path.join(dir, 'package.json'))) return dir
+        const packagePath = path.join(dir, 'package.json')
+        if (fs.existsSync(packagePath)) {
+            nearestPackageDir ??= dir
+            try {
+                const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
+                if (typeof pkg.name === 'string' && pkg.name.trim()) return dir
+            } catch {}
+        }
         dir = path.dirname(dir)
     }
+    if (nearestPackageDir) return nearestPackageDir
     throw new Error('Could not locate project root (package.json not found).')
 }
 

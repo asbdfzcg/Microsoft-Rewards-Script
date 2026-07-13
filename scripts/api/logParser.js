@@ -74,13 +74,14 @@ function ensureAccount(state, email) {
             finalPoints: null,
             earnable: null, // { mobile, browser, app } as reported in the "Earnable today" line
             searchSummary: null, // { mobile, desktop, bonus, total }
+            streakProtection: null, // { enabled, remainingDays, streakCounter, updatedAt }
             durationSeconds: null,
             success: null,
             error: null,
             live: {
                 balance: null, // latest known available-points balance
                 gained: 0, // points earned so far this run (per this account)
-                bySource: {}, // { search, bonus, read, checkIn, claimReward, claimBonus }
+                bySource: {}, // keyed by normalized activity source
                 lastUpdateTs: null
             }
         }
@@ -94,19 +95,56 @@ const RE = {
     accountStart: /^Starting account: (\S+) \| geoLocale: (.+?)\s*$/,
     earnable: /^Earnable today \| Mobile: (\d+) \| Browser: (\d+) \| App: (\d+) \| (\S+) \| locale: (\S+)/,
     searchSummary: /^Search summary \| mobile=(-?\d+) \| desktop=(-?\d+) \| bonus=(-?\d+) \| total=(-?\d+)/,
-    accountEnd: /^Completed account: (\S+) \| Total: \+(-?\d+) \| Old: (\d+) → New: (\d+) \| Duration: ([\d.]+)s/,
-    runEnd: /^Completed all accounts \| Accounts processed: (\d+) \| Total points collected: \+(-?\d+) \| Old total: (\d+) → New total: (\d+) \| Total runtime: ([\d.]+)min/,
+    streakProtection:
+        /^Snapshot complete \| offers=(\d+) \| reportable=(\d+) \| streaks=(\d+) \| streakProtectionEnabled=(true|false) \| streakProtectionRemainingDays=(\d+|null) \| streakCounter=(\d+|null) \| level=([^|]+) \| account=(\S+@\S+)$/,
+    accountEnd:
+        /^Completed account: (\S+) \| pointsGained=(-?\d+) \| previousBalance=(\d+) \| currentBalance=(\d+) \| durationSeconds=([\d.]+)/,
+    runEnd: /^Completed all accounts \| accountsProcessed=(\d+) \| pointsGained=(-?\d+) \| previousBalance=(\d+) \| currentBalance=(\d+) \| runtimeMinutes=([\d.]+)/,
     accountError: /^(\S+@\S+): ([\s\S]+)$/,
     flowFailed: /flow failed for (\S+@\S+):/i,
 
-    searchStart: /^Starting Bing searches \| currentPoints=(\d+)/,
-    searchApiGain: /^gainedPoints=(\d+) \| query=".*?" \| balance=(\S+) \| searchPts=/,
-    searchBrowserGain: /^\+(\d+) \| query="/,
-    readGain: /^Read article \d+\/\d+ \| status=\S+ \| gainedPoints=(\d+) \| newBalance=(\d+)/,
-    checkInGain: /Completed Daily Check-In \| type=103 \| gainedPoints=(\d+) \| oldBalance=\d+ \| newBalance=(\d+)/,
-    claimBonusGain: /^Completed ClaimBonusPoints \| acknowledged=true(?: \| gainedPoints=(\d+))? \| newBalance=(\d+)/,
-    claimRewardGain: /^Reward claimed \| offerId=\S+ \| status=\S+(?: \| gainedPoints=(\d+))?/,
-    flowCollected: /^Collected: \+(-?\d+) \| (\S+@\S+)/
+    searchStart: /^Starting Bing searches \| currentBalance=(\d+)/,
+    flowCollected: /^Points collected \| pointsGained=(-?\d+) \| currentBalance=(\d+) \| account=(\S+@\S+)/
+}
+
+function numericField(message, name) {
+    const match = message.match(new RegExp(`(?:^| \\| )${name}=(-?\\d+)(?= \\| |$)`))
+    return match ? Number(match[1]) : null
+}
+
+function pointEventSource(title, message) {
+    switch (title) {
+        case 'SEARCH-BING':
+            return message.startsWith('pointsGained=') ? 'search' : null
+        case 'SEARCH-BONUS':
+            return message.startsWith('pointsGained=') ? 'bonus' : null
+        case 'READ-TO-EARN':
+            return message.startsWith('Read article ') || message.startsWith('No points gained,') ? 'read' : null
+        case 'DAILY-CHECK-IN':
+            return message.startsWith('Completed Daily Check-In ') || message.startsWith('Daily Check-In completed ')
+                ? 'checkIn'
+                : null
+        case 'CLAIM-BONUS-POINTS':
+            return message.startsWith('Completed ClaimBonusPoints ') || message.startsWith('Nothing claimed ')
+                ? 'claimBonus'
+                : null
+        case 'CLAIM-REWARD':
+            return message.startsWith('Reward claimed ') ? 'claimReward' : null
+        case 'URL-REWARD':
+            return message.startsWith('Completed UrlReward') || message.startsWith('UrlReward credited ')
+                ? 'urlReward'
+                : null
+        case 'VISUAL-SEARCH':
+            return message.startsWith('Daily visual search done ') ? 'visualSearch' : null
+        case 'APP-REWARD':
+            return message.startsWith('Completed AppReward') ? 'appReward' : null
+        case 'PUNCHCARD':
+            return message.startsWith('Reported child ') ? 'punchcard' : null
+        case 'SEARCH-ON-BING-SEARCH':
+            return message.startsWith('SearchOnBing activity completed ') ? 'searchOnBing' : null
+        default:
+            return null
+    }
 }
 
 function applyLivePoints(state, entry) {
@@ -145,46 +183,29 @@ function applyLivePoints(state, entry) {
     }
 
     let m
-    switch (entry.title) {
-        case 'SEARCH-BING':
-        case 'SEARCH-BONUS':
-            if ((m = msg.match(RE.searchStart))) return setBalance(target(), num(m[1]))
-            if ((m = msg.match(RE.searchApiGain))) return addGain(target(), Number(m[1]), num(m[2]), 'search')
-            if ((m = msg.match(RE.searchBrowserGain)))
-                return addGain(target(), Number(m[1]), null, entry.title === 'SEARCH-BONUS' ? 'bonus' : 'search')
-            return false
-
-        case 'READ-TO-EARN':
-            if ((m = msg.match(RE.readGain))) return addGain(target(), Number(m[1]), num(m[2]), 'read')
-            return false
-
-        case 'DAILY-CHECK-IN':
-            if ((m = msg.match(RE.checkInGain))) return addGain(target(), Number(m[1]), num(m[2]), 'checkIn')
-            return false
-
-        case 'CLAIM-BONUS-POINTS':
-            if ((m = msg.match(RE.claimBonusGain))) return addGain(target(), m[1] ? Number(m[1]) : 0, num(m[2]), 'claimBonus')
-            return false
-
-        case 'CLAIM-REWARD':
-            if ((m = msg.match(RE.claimRewardGain))) return addGain(target(), m[1] ? Number(m[1]) : 0, null, 'claimReward')
-            return false
-
-        case 'FLOW':
-            if ((m = msg.match(RE.flowCollected))) {
-                const acc = target(m[2])
-                if (!acc) return false
-                const total = Number(m[1])
-                if (acc.live.gained === total) return false
-                acc.live.gained = total
-                touch(acc)
-                return true
-            }
-            return false
-
-        default:
-            return false
+    if ((entry.title === 'SEARCH-BING' || entry.title === 'SEARCH-BONUS') && (m = msg.match(RE.searchStart))) {
+        return setBalance(target(), num(m[1]))
     }
+
+    if (entry.title === 'FLOW' && (m = msg.match(RE.flowCollected))) {
+        const acc = target(m[3])
+        if (!acc) return false
+        const total = Number(m[1])
+        const balance = Number(m[2])
+        const changed = acc.live.gained !== total || acc.live.balance !== balance
+        acc.live.gained = total
+        acc.live.balance = balance
+        if (changed) touch(acc)
+        return changed
+    }
+
+    const source = pointEventSource(entry.title, msg)
+    if (!source) return false
+
+    const gained = numericField(msg, 'pointsGained')
+    const balance = numericField(msg, 'currentBalance')
+    if (gained == null && balance == null) return false
+    return addGain(target(), gained ?? 0, balance, source)
 }
 
 export function applyLogToRunState(state, entry) {
@@ -257,6 +278,21 @@ export function applyLogToRunState(state, entry) {
                         total: Number(m[4])
                     }
                 }
+            }
+            break
+
+        case 'REACT-PARSE':
+            if ((m = msg.match(RE.streakProtection))) {
+                const acc = ensureAccount(state, m[8])
+                if (acc) {
+                    acc.streakProtection = {
+                        enabled: m[4] === 'true',
+                        remainingDays: m[5] === 'null' ? null : Number(m[5]),
+                        streakCounter: m[6] === 'null' ? null : Number(m[6]),
+                        updatedAt: entry.ts
+                    }
+                }
+                return 'streak-protection'
             }
             break
 

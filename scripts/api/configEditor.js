@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 function resolveConfigPath(projectRoot) {
     const candidates = [
@@ -15,7 +16,7 @@ async function loadBotValidator(projectRoot, override) {
     const modPath = override || path.join(projectRoot, 'dist', 'util', 'Validator.js')
     if (!override && !fs.existsSync(modPath)) return null
     try {
-        const mod = await import(`file://${modPath}`)
+        const mod = await import(pathToFileURL(path.resolve(modPath)).href)
         const m = mod.default && !mod.validateConfig ? mod.default : mod
         if (typeof m.validateConfig === 'function') {
             return { via: 'bot-validateConfig', run: cfg => m.validateConfig(cfg) }
@@ -23,9 +24,11 @@ async function loadBotValidator(projectRoot, override) {
         if (m.ConfigSchema && typeof m.ConfigSchema.parse === 'function') {
             return { via: 'bot-ConfigSchema', run: cfg => m.ConfigSchema.parse(cfg) }
         }
-        return null
-    } catch {
-        return null
+        throw new Error('module has no validateConfig function or ConfigSchema')
+    } catch (error) {
+        throw new Error(
+            `Could not load bot config validator at ${modPath}: ${error instanceof Error ? error.message : String(error)}`
+        )
     }
 }
 
@@ -53,7 +56,16 @@ function structuralValidate(cfg) {
 }
 
 export async function validateConfig(cfg, { projectRoot, validatorModule } = {}) {
-    const validator = await loadBotValidator(projectRoot, validatorModule)
+    let validator
+    try {
+        validator = await loadBotValidator(projectRoot, validatorModule)
+    } catch (error) {
+        return {
+            ok: false,
+            errors: [error instanceof Error ? error.message : String(error)],
+            via: 'bot-validator-load'
+        }
+    }
     if (validator) {
         try {
             const value = validator.run(cfg)

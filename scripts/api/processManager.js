@@ -5,7 +5,13 @@ import { parseLogLine, createRunState, applyLogToRunState, summarizeRunState, se
 
 const IS_WIN = process.platform === 'win32'
 
-const BLOCKED_ENV = new Set(['NODE_OPTIONS', 'NODE_PATH', 'LD_PRELOAD', 'DYLD_INSERT_LIBRARIES', 'ELECTRON_RUN_AS_NODE'])
+const BLOCKED_ENV = new Set([
+    'NODE_OPTIONS',
+    'NODE_PATH',
+    'LD_PRELOAD',
+    'DYLD_INSERT_LIBRARIES',
+    'ELECTRON_RUN_AS_NODE'
+])
 
 export class ProcessManager extends EventEmitter {
     constructor({
@@ -148,7 +154,7 @@ export class ProcessManager extends EventEmitter {
 
     async restart(overrides = {}) {
         if (this.state !== 'idle') {
-            await this.stop({ force: Boolean(overrides.force) }).catch(() => { })
+            await this.stop({ force: Boolean(overrides.force) }).catch(() => {})
         }
         await new Promise(r => setTimeout(r, 300))
         return this.start(overrides)
@@ -179,6 +185,7 @@ export class ProcessManager extends EventEmitter {
             initialPoints: a.initialPoints,
             bySource: a.live.bySource,
             earnable: a.earnable,
+            streakProtection: a.streakProtection,
             done: a.success != null,
             success: a.success,
             error: a.error
@@ -325,8 +332,7 @@ export class ProcessManager extends EventEmitter {
                     this.child.kill(signal)
                 }
             }
-        } catch {
-        }
+        } catch {}
     }
 
     _finalize(code, signal, errorMessage = null) {
@@ -348,7 +354,7 @@ export class ProcessManager extends EventEmitter {
             errorMessage != null
                 ? `error: ${errorMessage}`
                 : `code ${code ?? 'n/a'}${signal ? ` / signal ${signal}` : ''}`
-        this._controllerLog(code === 0 || errorMessage == null ? 'info' : 'warn', `Run finished (${label}).`)
+        this._controllerLog(code === 0 && errorMessage == null ? 'info' : 'error', `Run finished (${label}).`)
 
         this.history.unshift({
             startedAt: this.startedAt,

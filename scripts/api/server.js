@@ -1,4 +1,3 @@
-
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -6,9 +5,20 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import { ProcessManager } from './processManager.js'
-import { buildSingleAccountEnv, loadAccounts, mergeAccountStats } from './accounts.js'
+import { buildExcludedAccountsEnv, buildSingleAccountEnv, loadAccounts, mergeAccountStats } from './accounts.js'
 import { validateConfig, deepMerge, readConfig, writeConfigAtomic } from './configEditor.js'
-import { log, parseArgs, getProjectRoot, loadEnvFile, loadConfigSafe, redactSecrets, envStr, envInt, envBool } from './lib.js'
+import { resolveRunCommand } from './runCommand.js'
+import {
+    log,
+    parseArgs,
+    getProjectRoot,
+    loadEnvFile,
+    loadConfigSafe,
+    redactSecrets,
+    envStr,
+    envInt,
+    envBool
+} from './lib.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = getProjectRoot(__dirname)
@@ -23,8 +33,7 @@ try {
     const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
     pkgVersion = pkg.version ?? pkgVersion
     pkgName = pkg.name ?? pkgName
-} catch {
-}
+} catch {}
 
 const HOST = envStr('API_HOST') ?? (typeof cliArgs.host === 'string' ? cliArgs.host : '127.0.0.1')
 const PORT = Number(cliArgs.port) || envInt('API_PORT', 3010)
@@ -39,33 +48,7 @@ const ALLOW_CONFIG_WRITE = envBool('API_ALLOW_CONFIG_WRITE', false)
 const RUN_HISTORY = envInt('API_RUN_HISTORY', 20)
 const DIAG_DIR = envStr('API_DIAGNOSTICS_DIR') ?? path.join(projectRoot, 'diagnostics')
 
-function resolveRunCommand() {
-    const cmdOverride = envStr('API_RUN_COMMAND')
-    if (cmdOverride) {
-        return { command: cmdOverride, args: parseRunArgs(envStr('API_RUN_ARGS')) }
-    }
-    const distEntry = path.join(projectRoot, 'dist', 'index.js')
-    if (fs.existsSync(distEntry)) {
-        return { command: process.execPath, args: [distEntry] }
-    }
-    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-    return { command: npm, args: ['run', 'ts-start'] }
-}
-
-function parseRunArgs(value) {
-    if (!value) return []
-    const trimmed = value.trim()
-    if (trimmed.startsWith('[')) {
-        try {
-            const arr = JSON.parse(trimmed)
-            if (Array.isArray(arr)) return arr.map(String)
-        } catch {
-        }
-    }
-    return trimmed.split(/\s+/).filter(Boolean)
-}
-
-const { command, args } = resolveRunCommand()
+const { command, args } = resolveRunCommand({ projectRoot })
 
 const pm = new ProcessManager({
     command,
@@ -91,7 +74,8 @@ function toHistoryRecord(entry) {
             email: a.email,
             collected: a.collectedPoints ?? a.live?.gained ?? 0,
             success: a.success,
-            error: a.error
+            error: a.error,
+            streakProtection: a.streakProtection ?? null
         }))
     }
 }
@@ -226,11 +210,10 @@ const requestHandler = async (req, res) => {
         return res.end()
     }
 
-    const isPublic = pathname === '/health' || pathname === '/'
-    if (!isPublic && !isAuthorized(req, url)) {
+    if (TOKEN && !isAuthorized(req, url)) {
         return sendJson(res, 401, {
             error: 'Unauthorized',
-            hint: 'Provide the API token via Authorization: Bearer, X-API-Key, or ?token= (the dashboard sends its CONTROL_API_TOKEN).'
+            hint: 'Provide the API token via Authorization: Bearer, X-API-Key, or ?token= (the dashboard sends its CONTROL_API_TOKEN). All endpoints require it while API_TOKEN is set.'
         })
     }
 
@@ -290,7 +273,11 @@ const requestHandler = async (req, res) => {
             const limit = clampInt(url.searchParams.get('limit'), 1, LOG_BUFFER, 200)
             const afterId = url.searchParams.has('afterId') ? Number(url.searchParams.get('afterId')) : null
             const minLevel = url.searchParams.get('level') || null
-            return sendJson(res, 200, pm.getLogs({ limit, afterId: Number.isFinite(afterId) ? afterId : null, minLevel }))
+            return sendJson(
+                res,
+                200,
+                pm.getLogs({ limit, afterId: Number.isFinite(afterId) ? afterId : null, minLevel })
+            )
         }
 
         // error read
@@ -327,7 +314,8 @@ const requestHandler = async (req, res) => {
         if (method === 'GET' && pathname === '/config') {
             const loaded = loadConfigSafe(projectRoot)
             if (!loaded) return sendJson(res, 404, { error: 'config.json not found' })
-            if (loaded.data == null) return sendJson(res, 500, { error: 'config.json is invalid', detail: loaded.error })
+            if (loaded.data == null)
+                return sendJson(res, 500, { error: 'config.json is invalid', detail: loaded.error })
             const reveal = REVEAL_ENABLED && Boolean(TOKEN) && url.searchParams.get('reveal') === '1'
             const data = reveal ? loaded.data : redactSecrets(loaded.data)
             return sendJson(res, 200, { path: loaded.path, redacted: !reveal, config: data })
@@ -343,23 +331,36 @@ const requestHandler = async (req, res) => {
             const body = await readJsonBody(req)
             const overrides = {}
             let selectedAccount = null
+            let excludedAccounts = []
             if (body.args != null) overrides.args = body.args
             if (body.env != null) {
                 if (!ALLOW_ENV_OVERRIDES) {
-                    return sendJson(res, 403, { error: 'Per-request env overrides are disabled. Set API_ALLOW_ENV_OVERRIDES=true to enable.' })
+                    return sendJson(res, 403, {
+                        error: 'Per-request env overrides are disabled. Set API_ALLOW_ENV_OVERRIDES=true to enable.'
+                    })
                 }
                 overrides.env = body.env
             }
             try {
+                if (body.accountIndex != null && body.excludedAccountIndexes != null) {
+                    return sendJson(res, 400, {
+                        error: '`accountIndex` and `excludedAccountIndexes` cannot be used together.',
+                        code: 'BAD_REQUEST'
+                    })
+                }
                 if (body.accountIndex != null) {
                     const selection = buildSingleAccountEnv(body.accountIndex)
                     // Apply the server-generated account isolation last, so a
                     // generic env override cannot accidentally re-enable other slots.
                     overrides.env = { ...(overrides.env || {}), ...selection.env }
                     selectedAccount = selection.account
+                } else if (body.excludedAccountIndexes != null) {
+                    const selection = buildExcludedAccountsEnv(body.excludedAccountIndexes)
+                    overrides.env = { ...(overrides.env || {}), ...selection.env }
+                    excludedAccounts = selection.excludedAccounts
                 }
                 const info = pm.start(overrides)
-                return sendJson(res, 202, { started: true, selectedAccount, ...info })
+                return sendJson(res, 202, { started: true, selectedAccount, excludedAccounts, ...info })
             } catch (err) {
                 if (err.code === 'ALREADY_RUNNING') return sendJson(res, 409, { error: err.message, code: err.code })
                 if (err.code === 'BAD_REQUEST') return sendJson(res, 400, { error: err.message, code: err.code })
@@ -373,7 +374,7 @@ const requestHandler = async (req, res) => {
             const force = Boolean(body.force)
             try {
                 const stopping = pm.stop({ force })
-                stopping.catch(() => { })
+                stopping.catch(() => {})
                 return sendJson(res, 202, { stopping: true, force })
             } catch (err) {
                 if (err.code === 'NOT_RUNNING') return sendJson(res, 409, { error: err.message, code: err.code })
@@ -386,21 +387,34 @@ const requestHandler = async (req, res) => {
             const body = await readJsonBody(req)
             const overrides = { force: Boolean(body.force) }
             let selectedAccount = null
+            let excludedAccounts = []
             if (body.args != null) overrides.args = body.args
             if (body.env != null) {
                 if (!ALLOW_ENV_OVERRIDES) {
-                    return sendJson(res, 403, { error: 'Per-request env overrides are disabled. Set API_ALLOW_ENV_OVERRIDES=true to enable.' })
+                    return sendJson(res, 403, {
+                        error: 'Per-request env overrides are disabled. Set API_ALLOW_ENV_OVERRIDES=true to enable.'
+                    })
                 }
                 overrides.env = body.env
             }
             try {
+                if (body.accountIndex != null && body.excludedAccountIndexes != null) {
+                    return sendJson(res, 400, {
+                        error: '`accountIndex` and `excludedAccountIndexes` cannot be used together.',
+                        code: 'BAD_REQUEST'
+                    })
+                }
                 if (body.accountIndex != null) {
                     const selection = buildSingleAccountEnv(body.accountIndex)
                     overrides.env = { ...(overrides.env || {}), ...selection.env }
                     selectedAccount = selection.account
+                } else if (body.excludedAccountIndexes != null) {
+                    const selection = buildExcludedAccountsEnv(body.excludedAccountIndexes)
+                    overrides.env = { ...(overrides.env || {}), ...selection.env }
+                    excludedAccounts = selection.excludedAccounts
                 }
                 const info = await pm.restart(overrides)
-                return sendJson(res, 202, { restarted: true, selectedAccount, ...info })
+                return sendJson(res, 202, { restarted: true, selectedAccount, excludedAccounts, ...info })
             } catch (err) {
                 if (err.code === 'BAD_REQUEST') return sendJson(res, 400, { error: err.message, code: err.code })
                 return sendJson(res, 500, { error: err.message })
@@ -410,7 +424,9 @@ const requestHandler = async (req, res) => {
         // conf
         if ((method === 'PUT' || method === 'PATCH') && pathname === '/config') {
             if (!ALLOW_CONFIG_WRITE) {
-                return sendJson(res, 403, { error: 'Config writes are disabled. Set API_ALLOW_CONFIG_WRITE=true to enable.' })
+                return sendJson(res, 403, {
+                    error: 'Config writes are disabled. Set API_ALLOW_CONFIG_WRITE=true to enable.'
+                })
             }
             const body = await readJsonBody(req)
             if (typeof body !== 'object' || body === null || Array.isArray(body)) {
@@ -420,9 +436,14 @@ const requestHandler = async (req, res) => {
             try {
                 candidate = method === 'PATCH' ? deepMerge(readConfig(projectRoot).data, body) : body
             } catch (err) {
-                return sendJson(res, 500, { error: `Could not read current config: ${err instanceof Error ? err.message : err}` })
+                return sendJson(res, 500, {
+                    error: `Could not read current config: ${err instanceof Error ? err.message : err}`
+                })
             }
-            const result = await validateConfig(candidate, { projectRoot, validatorModule: envStr('API_VALIDATOR_MODULE') })
+            const result = await validateConfig(candidate, {
+                projectRoot,
+                validatorModule: envStr('API_VALIDATOR_MODULE')
+            })
             if (!result.ok) {
                 return sendJson(res, 422, { error: 'Config validation failed', via: result.via, errors: result.errors })
             }
@@ -431,7 +452,9 @@ const requestHandler = async (req, res) => {
                 pm.note('info', `config.json updated via API (${method}); applies on the next run.`)
                 return sendJson(res, 200, { ok: true, path: written, via: result.via, appliesOnNextRun: true })
             } catch (err) {
-                return sendJson(res, 500, { error: `Could not write config: ${err instanceof Error ? err.message : err}` })
+                return sendJson(res, 500, {
+                    error: `Could not write config: ${err instanceof Error ? err.message : err}`
+                })
             }
         }
 
@@ -460,12 +483,18 @@ function clampInt(value, min, max, fallback) {
 }
 
 // diagn
-const DIAG_FILES = { 'screenshot.png': 'image/png', 'error.txt': 'text/plain; charset=utf-8', 'dump.html': 'application/octet-stream' }
+const DIAG_FILES = {
+    'screenshot.png': 'image/png',
+    'error.txt': 'text/plain; charset=utf-8',
+    'dump.html': 'application/octet-stream'
+}
 
 function listDiagnostics() {
     let dirents = []
     try {
-        dirents = fs.readdirSync(DIAG_DIR, { withFileTypes: true }).filter(d => d.isDirectory() && d.name.startsWith('error-'))
+        dirents = fs
+            .readdirSync(DIAG_DIR, { withFileTypes: true })
+            .filter(d => d.isDirectory() && d.name.startsWith('error-'))
     } catch {
         return { dir: DIAG_DIR, count: 0, entries: [] }
     }
@@ -477,17 +506,14 @@ function listDiagnostics() {
             let error = null
             try {
                 files = fs.readdirSync(full)
-            } catch {
-            }
+            } catch {}
             try {
                 createdAt = fs.statSync(full).mtime.toISOString()
-            } catch {
-            }
+            } catch {}
             if (files.includes('error.txt')) {
                 try {
                     error = fs.readFileSync(path.join(full, 'error.txt'), 'utf8').slice(0, 2000)
-                } catch {
-                }
+                } catch {}
             }
             return {
                 name: d.name,
@@ -503,11 +529,7 @@ function listDiagnostics() {
 }
 
 function serveDiagnosticFile(res, pathname) {
-    const parts = pathname
-        .slice('/diagnostics/'.length)
-        .split('/')
-        .filter(Boolean)
-        .map(decodeURIComponent)
+    const parts = pathname.slice('/diagnostics/'.length).split('/').filter(Boolean).map(decodeURIComponent)
     if (parts.length !== 2) return sendJson(res, 404, { error: 'Not found' })
     const [name, file] = parts
     if (!/^error-[A-Za-z0-9._:-]+$/.test(name) || !(file in DIAG_FILES)) {
@@ -539,7 +561,10 @@ server.on('error', err => {
 server.listen(PORT, HOST, () => {
     log('INFO', `${pkgName} control API listening on http://${HOST}:${PORT} (headless - no UI)`)
     log('INFO', `Launch command: ${command} ${args.join(' ')}`.trim())
-    log('INFO', `Auth: ${TOKEN ? 'shared token required (API_TOKEN)' : 'DISABLED (no API_TOKEN set)'} | CORS origin: ${CORS_ORIGIN}`)
+    log(
+        'INFO',
+        `Auth: ${TOKEN ? 'shared token required (API_TOKEN)' : 'DISABLED (no API_TOKEN set)'} | CORS origin: ${CORS_ORIGIN}`
+    )
     log('INFO', `Stateless: writes nothing to disk | config writes: ${ALLOW_CONFIG_WRITE ? 'on' : 'off'}`)
     if (!TOKEN) {
         const loopback = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1'

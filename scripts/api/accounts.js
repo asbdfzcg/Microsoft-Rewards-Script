@@ -12,9 +12,18 @@ function envStrFrom(sourceEnv, key) {
  */
 export function loadAccounts(sourceEnv = process.env) {
     const accounts = []
-    for (let i = 1; ; i++) {
+    const indexes = [
+        ...new Set(
+            Object.keys(sourceEnv)
+                .map(key => /^ACCOUNT_(\d+)_EMAIL$/.exec(key)?.[1])
+                .filter(Boolean)
+                .map(Number)
+        )
+    ].sort((a, b) => a - b)
+
+    for (const i of indexes) {
         const email = envStrFrom(sourceEnv, `ACCOUNT_${i}_EMAIL`)
-        if (!email) break
+        if (!email) continue
 
         const proxyUrl = envStrFrom(sourceEnv, `ACCOUNT_${i}_PROXY_URL`)
         accounts.push({
@@ -27,10 +36,10 @@ export function loadAccounts(sourceEnv = process.env) {
             hasTotp: Boolean(envStrFrom(sourceEnv, `ACCOUNT_${i}_TOTP_SECRET`)),
             proxy: proxyUrl
                 ? {
-                    url: proxyUrl,
-                    port: envStrFrom(sourceEnv, `ACCOUNT_${i}_PROXY_PORT`) ?? null,
-                    hasCredentials: Boolean(envStrFrom(sourceEnv, `ACCOUNT_${i}_PROXY_USERNAME`))
-                }
+                      url: proxyUrl,
+                      port: envStrFrom(sourceEnv, `ACCOUNT_${i}_PROXY_PORT`) ?? null,
+                      hasCredentials: Boolean(envStrFrom(sourceEnv, `ACCOUNT_${i}_PROXY_USERNAME`))
+                  }
                 : null
         })
     }
@@ -84,6 +93,67 @@ export function buildSingleAccountEnv(accountIndex, sourceEnv = process.env) {
     }
 }
 
+/**
+ * Builds a dense child-process account environment with selected configured
+ * slots excluded. Remaining slots are remapped to ACCOUNT_1..N so gaps never
+ * make the bot stop discovering accounts early.
+ */
+export function buildExcludedAccountsEnv(excludedAccountIndexes, sourceEnv = process.env) {
+    if (!Array.isArray(excludedAccountIndexes)) {
+        const err = new Error('`excludedAccountIndexes` must be an array of positive integers.')
+        err.code = 'BAD_REQUEST'
+        throw err
+    }
+
+    const excluded = [...new Set(excludedAccountIndexes.map(Number))]
+    if (excluded.some(index => !Number.isSafeInteger(index) || index < 1)) {
+        const err = new Error('`excludedAccountIndexes` must contain only positive integers.')
+        err.code = 'BAD_REQUEST'
+        throw err
+    }
+
+    const accounts = loadAccounts(sourceEnv)
+    const knownIndexes = new Set(accounts.map(account => account.index))
+    const unknown = excluded.filter(index => !knownIndexes.has(index))
+    if (unknown.length) {
+        const err = new Error(
+            `Unknown account slot${unknown.length === 1 ? '' : 's'}: ${unknown.map(index => `ACCOUNT_${index}`).join(', ')}.`
+        )
+        err.code = 'BAD_REQUEST'
+        throw err
+    }
+
+    const excludedSet = new Set(excluded)
+    const included = accounts.filter(account => !excludedSet.has(account.index))
+    if (!included.length) {
+        const err = new Error('A scheduled run cannot exclude every configured account.')
+        err.code = 'BAD_REQUEST'
+        throw err
+    }
+
+    const env = {}
+    for (const key of Object.keys(sourceEnv)) {
+        if (/^ACCOUNT_\d+_/.test(key)) env[key] = ''
+    }
+
+    included.forEach((account, position) => {
+        const sourcePrefix = `ACCOUNT_${account.index}_`
+        const targetPrefix = `ACCOUNT_${position + 1}_`
+        for (const [key, value] of Object.entries(sourceEnv)) {
+            if (!key.startsWith(sourcePrefix)) continue
+            env[`${targetPrefix}${key.slice(sourcePrefix.length)}`] = value
+        }
+    })
+
+    return {
+        env,
+        excludedAccounts: accounts
+            .filter(account => excludedSet.has(account.index))
+            .map(({ index, email }) => ({ index, email })),
+        includedAccounts: included.map(({ index, email }) => ({ index, email }))
+    }
+}
+
 export function mergeAccountStats(accounts, runs) {
     // Index history results by email.
     const byEmail = new Map()
@@ -98,6 +168,7 @@ export function mergeAccountStats(accounts, runs) {
     return accounts.map(a => {
         const results = byEmail.get(a.emailKey) || [] // already most-recent-first
         const last = results[0] || null
+        const streakProtection = results.find(result => result.streakProtection != null)?.streakProtection ?? null
 
         let totalCollected = 0
         for (const r of results) totalCollected += r.collected || 0
@@ -119,7 +190,8 @@ export function mergeAccountStats(accounts, runs) {
             lastRunAt: last?.when ?? null,
             lastCollected: last?.collected ?? null,
             lastSuccess: last ? last.success : null,
-            lastError: last?.error ?? null
+            lastError: last?.error ?? null,
+            streakProtection
         }
     })
 }

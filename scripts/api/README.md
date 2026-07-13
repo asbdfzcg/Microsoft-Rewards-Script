@@ -14,7 +14,7 @@ a dashboard (or any tool) can drive it over HTTP:
 ## It writes nothing
 
 This API is **stateless**. It keeps everything in memory and creates no folders
-and no files — no database, no `data/`, no JSON, not even a PID file. The bot
+and no files - no database, no `data/`, no JSON, not even a PID file. The bot
 repo stays exactly as clean as you left it.
 
 Anything worth keeping (point history, run history, charts, the schedule) is
@@ -27,7 +27,7 @@ config from the dashboard (it keeps a `config.json.bak` when it does).
 
 It also does **not** modify the bot. It spawns the exact command you'd run by
 hand (`node dist/index.js` by default) as a child process and watches its
-output. It only launches, kills and restarts it — nothing more.
+output. It only launches, kills and restarts it - nothing more.
 
 ```
   bot repo                                    dashboard repo
@@ -56,7 +56,7 @@ npm run build
 npm run api          # or: node scripts/api/server.js
 ```
 
-`GET http://127.0.0.1:3010/` returns a JSON index of the endpoints — a quick way
+`GET http://127.0.0.1:3010/` returns a JSON index of the endpoints - a quick way
 to confirm it's up. There is no web page here; point the dashboard at it instead.
 
 By default it binds to `127.0.0.1` with **no token**. Fine for a local poke; set
@@ -67,15 +67,14 @@ By default it binds to `127.0.0.1` with **no token**. Fine for a local poke; set
 Local-first, single-user, so: **one shared token**.
 
 - Set `API_TOKEN` to any secret string and give the **same** value to the
-  dashboard (as its `CONTROL_API_TOKEN`). Every endpoint except `/health` and
-  the `/` index then requires it — via `Authorization: Bearer <token>`,
+  dashboard (as its `CONTROL_API_TOKEN`). Every endpoint then requires it - via `Authorization: Bearer <token>`,
   `X-API-Key: <token>`, or `?token=<token>` (the query form exists because
   `EventSource` can't set headers). Tokens are compared in constant time.
 - No token → the API is open. Fine on loopback, risky if exposed (it can start
-  processes on your machine), and it warns loudly at startup — as an error if
+  processes on your machine), and it warns loudly at startup - as an error if
   it's bound to a non-loopback address.
-- `/health` is public on purpose: it lets the dashboard tell "API is down" apart
-  from "API is up but rejected my token".
+- With no token configured, every endpoint remains open. With a token configured,
+  even `/health` and the `/` index require it.
 - Going beyond localhost? Put it behind a reverse proxy (Caddy/nginx/Traefik)
   and let that terminate TLS.
 - `/config` redacts webhook URLs/tokens by default. Account passwords, recovery addresses, TOTP secrets, and proxy credentials are never
@@ -96,12 +95,12 @@ repo root automatically).
 | ------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
 | `API_HOST`                | `127.0.0.1`          | Interface to bind. `0.0.0.0` to expose (set a token!).                                            |
 | `API_PORT`                | `3010`               | Listen port.                                                                                      |
-| `API_TOKEN`               | _(unset)_            | Shared token. If set, everything except `/health` and `/` requires it.                            |
+| `API_TOKEN`               | _(unset)_            | Shared token. If set, every endpoint requires it.                                                 |
 | `API_CORS_ORIGIN`         | `*`                  | `Access-Control-Allow-Origin`. Only matters if a browser calls this API directly.                 |
 | `API_LOG_BUFFER`          | `2000`               | Log lines kept in memory (ring buffer) for replay.                                                |
 | `API_RUN_HISTORY`         | `20`                 | Completed runs kept in memory for `/history`. The durable copy lives in the dashboard's database. |
 | `API_STOP_TIMEOUT_MS`     | `15000`              | Grace period after SIGTERM before escalating to SIGKILL.                                          |
-| `API_RUN_COMMAND`         | _(auto)_             | Override the launch binary. Auto-detects `dist/index.js`, else `npm run ts-start`.                |
+| `API_RUN_COMMAND`         | _(auto)_             | Override the launch binary. Auto-detects `dist/index.js`, else invokes the local ts-node CLI.     |
 | `API_RUN_ARGS`            | _(none)_             | Args for `API_RUN_COMMAND`. Space-separated or a JSON array.                                      |
 | `API_DIAGNOSTICS_DIR`     | `<repo>/diagnostics` | Where the bot writes error captures (matches its default). Read-only to this API.                 |
 | `API_ALLOW_CONFIG_WRITE`  | `false`              | Allow `PUT`/`PATCH /config` to edit `config.json`.                                                |
@@ -115,6 +114,13 @@ CLI flags `-port`, `-host`, `-token` are also accepted and override the env:
 node scripts/api/server.js -host 0.0.0.0 -port 3010 -token "$MY_TOKEN"
 ```
 
+The automatic development fallback invokes `node_modules/ts-node/dist/bin.js`
+directly with Node. This avoids the `spawn EINVAL` error caused by launching
+`npm.cmd` without a shell on patched Node versions for Windows. An explicit
+`API_RUN_COMMAND=npm.cmd` is redirected through npm's JavaScript CLI for the
+same reason; other `.cmd` and `.bat` overrides are rejected rather than run
+through an injection-prone shell.
+
 ## Endpoints
 
 Base URL: `http://<host>:<port>`
@@ -123,14 +129,14 @@ Base URL: `http://<host>:<port>`
 
 | Method | Path                      | Description                                                                    |
 | ------ | ------------------------- | ------------------------------------------------------------------------------ |
-| `GET`  | `/`                       | Public JSON index: name, version, `authRequired`, endpoint list.               |
-| `GET`  | `/health`                 | Liveness. Public. `{ ok, name, version, state, uptimeSec, authRequired }`.     |
+| `GET`  | `/`                       | JSON index: name, version, `authRequired`, endpoint list.                      |
+| `GET`  | `/health`                 | Liveness. `{ ok, name, version, state, uptimeSec, authRequired }`.             |
 | `GET`  | `/status`                 | Full run + process state, including the live points summary.                   |
-| `GET`  | `/points`                 | **Live points** — see below.                                                   |
+| `GET`  | `/points`                 | **Live points** - see below.                                                   |
 | `GET`  | `/logs`                   | Buffered logs. Query: `limit`, `level` (min level), `afterId`.                 |
 | `GET`  | `/errors`                 | Recent warnings/errors + per-account errors. Query: `limit`, `warnings=false`. |
 | `GET`  | `/history`                | Runs this API has launched since it started (in memory, newest first).         |
-| `GET`  | `/accounts`               | Account overview from `.env`; full email, no passwords/TOTP/recovery values.                                           |
+| `GET`  | `/accounts`               | Account overview from `.env`; full email, no passwords/TOTP/recovery values.   |
 | `GET`  | `/diagnostics`            | List error captures (name, time, which artifacts exist, first error line).     |
 | `GET`  | `/diagnostics/<n>/<file>` | One artifact: `screenshot.png`, `error.txt`, or `dump.html`.                   |
 | `GET`  | `/config`                 | `config.json`, secrets redacted. `?reveal=1` if enabled + authed.              |
@@ -138,17 +144,20 @@ Base URL: `http://<host>:<port>`
 
 ### Control & write
 
-| Method  | Path        | Body                      | Description                                                                       |
-| ------- | ----------- | ------------------------- | --------------------------------------------------------------------------------- |
-| `POST`  | `/start`    | `{ accountIndex?, args?, env? }` | Launch all accounts, or only one `.env` slot such as `{ "accountIndex": 2 }`. `409` if active. |
-| `POST`  | `/stop`     | `{ force? }`              | SIGTERM (or SIGKILL if `force`), escalates after the grace window. `409` if idle. |
-| `POST`  | `/restart`  | `{ force?, accountIndex?, args?, env? }` | Stop (if running), then launch all accounts or one selected slot. |
-| `POST`  | `/shutdown` | `{ force? }`              | Stop the bot (if running) and exit the API process.                               |
-| `PUT`   | `/config`   | _(full config)_           | Replace `config.json`. Validated. Needs `API_ALLOW_CONFIG_WRITE`.                 |
-| `PATCH` | `/config`   | _(partial)_               | Deep-merge into `config.json`. Validated. Needs `API_ALLOW_CONFIG_WRITE`.         |
+| Method  | Path        | Body                                                              | Description                                                                       |
+| ------- | ----------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `POST`  | `/start`    | `{ accountIndex?, excludedAccountIndexes?, args?, env? }`         | Launch all accounts, one slot, or all except selected slots. `409` if active.     |
+| `POST`  | `/stop`     | `{ force? }`                                                      | SIGTERM (or SIGKILL if `force`), escalates after the grace window. `409` if idle. |
+| `POST`  | `/restart`  | `{ force?, accountIndex?, excludedAccountIndexes?, args?, env? }` | Stop, then launch with the same account selection options.                        |
+| `POST`  | `/shutdown` | `{ force? }`                                                      | Stop the bot (if running) and exit the API process.                               |
+| `PUT`   | `/config`   | _(full config)_                                                   | Replace `config.json`. Validated. Needs `API_ALLOW_CONFIG_WRITE`.                 |
+| `PATCH` | `/config`   | _(partial)_                                                       | Deep-merge into `config.json`. Validated. Needs `API_ALLOW_CONFIG_WRITE`.         |
 
 `env` in a `/start` body is ignored unless `API_ALLOW_ENV_OVERRIDES=true`, and a
 few launch-hijacking keys (`NODE_OPTIONS`, `LD_PRELOAD`, …) are always dropped.
+`accountIndex` and `excludedAccountIndexes` are mutually exclusive. Exclusion
+runs remap the remaining accounts densely in the child process, so excluding a
+middle slot cannot hide later accounts.
 
 > **Scheduling lives in the dashboard.** A cron here would have to persist a
 > schedule file into the bot repo, so it moved to the dashboard, which already
@@ -158,8 +167,13 @@ few launch-hijacking keys (`NODE_OPTIONS`, `LD_PRELOAD`, …) are always dropped
 
 `GET /points` reflects the run **as it happens**. The bot prints its balance and
 every gain as it earns them (`SEARCH-BING`, `READ-TO-EARN`, `DAILY-CHECK-IN`,
-`CLAIM-REWARD`, …), and the API folds those lines into a running tally — so you
+`CLAIM-REWARD`, …), and the API folds those lines into a running tally - so you
 can watch points tick up mid-run instead of waiting for the final total.
+
+Point-result log lines use stable machine-facing fields: `pointsGained` for the
+delta, `currentBalance` for the latest balance, and `previousBalance` when the
+starting value is useful. The parser deliberately ignores response/debug and
+summary lines that would otherwise count the same points twice.
 
 ```jsonc
 {
@@ -231,7 +245,7 @@ es.addEventListener('status', e => render(JSON.parse(e.data)))
 ```bash
 TOKEN="Authorization: Bearer $API_TOKEN"
 
-curl -s localhost:3010/health
+curl -s -H "$TOKEN" localhost:3010/health
 curl -s -H "$TOKEN" localhost:3010/status
 curl -s -H "$TOKEN" -X POST localhost:3010/start -d '{}'
 
@@ -251,7 +265,7 @@ curl -sN -H "$TOKEN" "localhost:3010/events?replay=50"
 
 ## Keeping it running
 
-A long-lived process — run it like any other service.
+A long-lived process - run it like any other service.
 
 - **Terminal / dev:** `npm run api`
 - **pm2:** `pm2 start scripts/api/server.js --name mrs-api`
@@ -262,7 +276,7 @@ A long-lived process — run it like any other service.
   it binds to loopback _inside_ the container and nothing can reach it).
 
 Once listening it writes one machine-readable line to stdout:
-`__API_READY__ {"host","port","pid","version","auth"}` — wait for that instead of
+`__API_READY__ {"host","port","pid","version","auth"}` - wait for that instead of
 guessing a startup delay. If the port is already taken it exits immediately
 rather than silently double-spawning the bot.
 
@@ -270,9 +284,9 @@ rather than silently double-spawning the bot.
 
 | File                | Role                                                                              |
 | ------------------- | --------------------------------------------------------------------------------- |
-| `server.js`         | HTTP server: routing, SSE, auth, CORS. JSON only — no UI, no disk.                |
+| `server.js`         | HTTP server: routing, SSE, auth, CORS. JSON only - no UI, no disk.                |
 | `processManager.js` | Child-process lifecycle + log ingestion + run state. Emits `log`/`status`/`exit`. |
 | `logParser.js`      | Pure parser: raw line → structured entry, plus the live points accumulator.       |
-| `accounts.js`       | Local account overview plus safe single-account child-environment selection.     |
+| `accounts.js`       | Local account overview plus safe single-account child-environment selection.      |
 | `configEditor.js`   | Validate (using the bot's own schema) + atomic write for `config.json`.           |
 | `lib.js`            | Tiny helpers (env, config load, secret redaction). No external deps.              |
