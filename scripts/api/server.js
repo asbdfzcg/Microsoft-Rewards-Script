@@ -63,6 +63,16 @@ const pm = new ProcessManager({
 
 const startedAt = Date.now()
 
+// Forward bot stdout/stderr to the API server's own output streams so that
+// container logs (docker logs) continue to show the bot's output regardless
+// of which mode started the run. Controller messages (run start/stop lifecycle
+// events from ProcessManager) are included — they are low-volume and useful.
+pm.on('log', entry => {
+    const line = (entry.raw ?? entry.message ?? '') + '\n'
+    if (entry.source === 'stderr') process.stderr.write(line)
+    else process.stdout.write(line)
+})
+
 function toHistoryRecord(entry) {
     return {
         startedAt: entry.startedAt,
