@@ -33,7 +33,7 @@ try {
     const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
     pkgVersion = pkg.version ?? pkgVersion
     pkgName = pkg.name ?? pkgName
-} catch {}
+} catch { }
 
 const HOST = envStr('API_HOST') ?? (typeof cliArgs.host === 'string' ? cliArgs.host : '127.0.0.1')
 const PORT = Number(cliArgs.port) || envInt('API_PORT', 3010)
@@ -350,8 +350,6 @@ const requestHandler = async (req, res) => {
                 }
                 if (body.accountIndex != null) {
                     const selection = buildSingleAccountEnv(body.accountIndex)
-                    // Apply the server-generated account isolation last, so a
-                    // generic env override cannot accidentally re-enable other slots.
                     overrides.env = { ...(overrides.env || {}), ...selection.env }
                     selectedAccount = selection.account
                 } else if (body.excludedAccountIndexes != null) {
@@ -374,7 +372,7 @@ const requestHandler = async (req, res) => {
             const force = Boolean(body.force)
             try {
                 const stopping = pm.stop({ force })
-                stopping.catch(() => {})
+                stopping.catch(() => { })
                 return sendJson(res, 202, { stopping: true, force })
             } catch (err) {
                 if (err.code === 'NOT_RUNNING') return sendJson(res, 409, { error: err.message, code: err.code })
@@ -506,14 +504,14 @@ function listDiagnostics() {
             let error = null
             try {
                 files = fs.readdirSync(full)
-            } catch {}
+            } catch { }
             try {
                 createdAt = fs.statSync(full).mtime.toISOString()
-            } catch {}
+            } catch { }
             if (files.includes('error.txt')) {
                 try {
                     error = fs.readFileSync(path.join(full, 'error.txt'), 'utf8').slice(0, 2000)
-                } catch {}
+                } catch { }
             }
             return {
                 name: d.name,
