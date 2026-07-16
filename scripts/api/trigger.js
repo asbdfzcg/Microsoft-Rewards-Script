@@ -10,6 +10,14 @@
  */
 
 import http from 'node:http'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { getProjectRoot } from './lib.js'
+import { readSchedule } from './scheduleStore.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const projectRoot = getProjectRoot(__dirname)
 
 const PORT = Number(process.env.API_PORT) || 3010
 const TOKEN = process.env.API_TOKEN || ''
@@ -18,9 +26,10 @@ const POLL_MS = 15_000
 const STARTUP_ATTEMPTS = 30
 const STARTUP_DELAY_MS = 2_000
 
-function request(method, path) {
+function request(method, path, body = {}) {
     return new Promise((resolve, reject) => {
-        const headers = { 'Content-Type': 'application/json', 'Content-Length': '2' }
+        const payload = JSON.stringify(body ?? {})
+        const headers = { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
         if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`
         const req = http.request({ host: '127.0.0.1', port: PORT, path, method, headers }, res => {
             let raw = ''
@@ -34,12 +43,29 @@ function request(method, path) {
             })
         })
         req.on('error', reject)
-        req.end('{}')
+        req.end(payload)
     })
 }
 
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms))
+}
+
+// Scheduled runs (cron -> run_daily.sh -> here) honor whichever accounts are
+// currently excluded in config/schedule.json, if the dashboard (or a manual
+// PUT /schedule call) has ever saved one. RUN_ON_START's initial kickoff goes
+// through this same path, so it respects exclusions too rather than always
+// running every account regardless of the saved schedule.
+function buildStartBody() {
+    try {
+        const schedule = readSchedule(projectRoot)
+        if (schedule.excludedAccountIndexes?.length) {
+            return { excludedAccountIndexes: schedule.excludedAccountIndexes }
+        }
+    } catch (err) {
+        console.warn(`[trigger] Could not read schedule.json, running with all accounts: ${err.message}`)
+    }
+    return {}
 }
 
 // Wait for the API server to be ready.  Handles the RUN_ON_START race where
@@ -67,7 +93,7 @@ if (!ready) {
 }
 
 // Trigger the run.
-const { status, body } = await request('POST', '/start')
+const { status, body } = await request('POST', '/start', buildStartBody())
 
 if (status === 409) {
     // A run is already in progress — the dashboard or a previous cron invocation
