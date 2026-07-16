@@ -33,6 +33,7 @@
     - [Proxy](#proxy)
     - [Webhooks](#webhooks)
 - [Troubleshooting](#troubleshooting)
+    - [Session management](#session-management)
 - [Disclaimer](#disclaimer)
 
 ---
@@ -345,6 +346,22 @@ Opt-in features that may change. Disabled by default.
 
 > [!TIP]
 > Most login issues can be fixed by deleting your /sessions folder, and redeploying the script
+
+### Session management
+
+The session utility requires an explicit command, so running it without an
+argument only displays help and never deletes anything.
+
+```bash
+# List stored mobile and desktop sessions
+npm run clear-sessions -- list
+
+# Delete the sessions belonging to one account
+npm run clear-sessions -- email user@example.com
+
+# Delete every stored session
+npm run clear-sessions -- all
+```
 
 ---
 
