@@ -12,6 +12,8 @@ The API can:
 - stream structured logs over Server-Sent Events (SSE);
 - return recent errors, in-memory run history, configured account summaries,
   and diagnostic captures;
+- list stored session metadata and delete the mobile/desktop sessions belonging
+  to one account;
 - read `config.json` and, when explicitly enabled, validate and update it;
 - read the effective cron schedule and, in Docker API mode, persist and apply
   schedule changes without restarting the container.
@@ -53,6 +55,9 @@ disabled by default and require separate opt-in environment variables:
   the cron change immediately. The file lives in the existing Docker `./config`
   volume, so it survives container restarts and takes precedence over
   `CRON_SCHEDULE`.
+- `DELETE /sessions/:email` removes only the matching account rows from the
+  bot's existing `sessions.db`. The API never exposes stored cookies or
+  fingerprint contents and has no delete-all session route.
 
 All live logs, parsed run state, errors, history, and calculated account
 statistics remain memory-only. A dashboard can store those results separately
@@ -109,8 +114,8 @@ A successful response looks like:
 ```
 
 `stateless: true` means live controller data is kept in memory rather than an
-API database. It does not mean the explicitly enabled config and schedule file
-writes are unavailable.
+API database. It does not mean the explicitly enabled config/schedule writes or
+account-scoped session deletion are unavailable.
 
 The exact package name and version are read from the repository's
 `package.json`.
@@ -248,34 +253,36 @@ server itself remains dependency-free.
 
 ### Read endpoints
 
-| Method | Path                            | Purpose                                                          |
-| ------ | ------------------------------- | ---------------------------------------------------------------- |
-| `GET`  | `/`                             | API name, version, authentication state, and endpoint index.     |
-| `GET`  | `/health`                       | Lightweight liveness and process-state check.                    |
-| `GET`  | `/status`                       | Complete process and parsed run state.                           |
-| `GET`  | `/points`                       | Simplified live point totals for dashboard polling.              |
-| `GET`  | `/logs`                         | Buffered structured logs.                                        |
-| `GET`  | `/errors`                       | Recent warning/error logs and per-account failures.              |
-| `GET`  | `/history`                      | Completed runs retained by this API process.                     |
-| `GET`  | `/accounts`                     | Safe summaries of configured accounts and recent run statistics. |
-| `GET`  | `/diagnostics`                  | List available error-capture directories.                        |
-| `GET`  | `/diagnostics/<capture>/<file>` | Download or view one diagnostic artifact.                        |
-| `GET`  | `/config`                       | Read `config.json`, redacted by default.                         |
-| `GET`  | `/schedule`                     | Read the effective cron schedule and its source.                 |
-| `GET`  | `/events`                       | SSE stream containing live logs and status updates.              |
+| Method | Path                            | Purpose                                                           |
+| ------ | ------------------------------- | ----------------------------------------------------------------- |
+| `GET`  | `/`                             | API name, version, authentication state, and endpoint index.      |
+| `GET`  | `/health`                       | Lightweight liveness and process-state check.                     |
+| `GET`  | `/status`                       | Complete process and parsed run state.                            |
+| `GET`  | `/points`                       | Simplified live point totals for dashboard polling.               |
+| `GET`  | `/logs`                         | Buffered structured logs.                                         |
+| `GET`  | `/errors`                       | Recent warning/error logs and per-account failures.               |
+| `GET`  | `/history`                      | Completed runs retained by this API process.                      |
+| `GET`  | `/accounts`                     | Safe summaries of configured accounts and recent run statistics.  |
+| `GET`  | `/sessions`                     | Stored account/platform session metadata without secret contents. |
+| `GET`  | `/diagnostics`                  | List available error-capture directories.                         |
+| `GET`  | `/diagnostics/<capture>/<file>` | Download or view one diagnostic artifact.                         |
+| `GET`  | `/config`                       | Read `config.json`, redacted by default.                          |
+| `GET`  | `/schedule`                     | Read the effective cron schedule and its source.                  |
+| `GET`  | `/events`                       | SSE stream containing live logs and status updates.               |
 
 ### Control and write endpoints
 
-| Method  | Path        | Purpose                                                 |
-| ------- | ----------- | ------------------------------------------------------- |
-| `POST`  | `/start`    | Start a bot run.                                        |
-| `POST`  | `/stop`     | Request graceful or forced process termination.         |
-| `POST`  | `/restart`  | Stop an active run, then start a new one.               |
-| `POST`  | `/shutdown` | Stop the bot if needed and terminate the API process.   |
-| `PUT`   | `/config`   | Replace the complete config after validation.           |
-| `PATCH` | `/config`   | Deep-merge a partial config after validation.           |
-| `PUT`   | `/schedule` | Persist and immediately apply supplied schedule fields. |
-| `PATCH` | `/schedule` | Persist and immediately apply supplied schedule fields. |
+| Method   | Path               | Purpose                                                 |
+| -------- | ------------------ | ------------------------------------------------------- |
+| `POST`   | `/start`           | Start a bot run.                                        |
+| `POST`   | `/stop`            | Request graceful or forced process termination.         |
+| `POST`   | `/restart`         | Stop an active run, then start a new one.               |
+| `POST`   | `/shutdown`        | Stop the bot if needed and terminate the API process.   |
+| `DELETE` | `/sessions/:email` | Delete only one account's mobile and desktop sessions.  |
+| `PUT`    | `/config`          | Replace the complete config after validation.           |
+| `PATCH`  | `/config`          | Deep-merge a partial config after validation.           |
+| `PUT`    | `/schedule`        | Persist and immediately apply supplied schedule fields. |
+| `PATCH`  | `/schedule`        | Persist and immediately apply supplied schedule fields. |
 
 ## Reading API state
 
@@ -313,6 +320,7 @@ console.log(data)
         "GET /errors",
         "GET /history",
         "GET /accounts",
+        "GET /sessions",
         "GET /diagnostics",
         "GET /events",
         "GET /config",
@@ -321,6 +329,7 @@ console.log(data)
         "POST /stop",
         "POST /restart",
         "POST /shutdown",
+        "DELETE /sessions/:email",
         "PUT|PATCH /config",
         "PUT|PATCH /schedule"
     ]
@@ -742,6 +751,107 @@ console.log(data.accounts)
 The `runs`, `totalCollected`, `successStreak`, and `last*` fields are calculated
 from this API process's in-memory history and therefore reset after an API
 restart.
+
+## Session management
+
+The session endpoints use the `sessions.db` located under the configured
+`sessionPath`. They require the normal API token whenever `API_TOKEN` is set.
+
+Session contents are authentication material. The API deliberately returns only
+safe metadata such as account, platform, update time, cookie count, and whether
+storage/fingerprint data exists. Cookie values, storage state, and fingerprint
+contents are never returned.
+
+### `GET /sessions`
+
+Lists every stored mobile and desktop session.
+
+**cURL**
+
+```bash
+curl --request GET \
+  --url http://127.0.0.1:3010/sessions \
+  --header 'Authorization: Bearer YOUR_API_TOKEN'
+```
+
+**Axios**
+
+```js
+const { data } = await api.get('/sessions')
+console.log(data.sessions)
+```
+
+```json
+{
+    "databaseExists": true,
+    "sessions": [
+        {
+            "email": "user@example.com",
+            "platform": "desktop",
+            "updatedAt": "2026-07-17T08:30:00.000Z",
+            "hasStorageState": true,
+            "hasFingerprint": true,
+            "cookieCount": 18
+        },
+        {
+            "email": "user@example.com",
+            "platform": "mobile",
+            "updatedAt": "2026-07-17T08:31:00.000Z",
+            "hasStorageState": true,
+            "hasFingerprint": true,
+            "cookieCount": 21
+        }
+    ],
+    "count": 2,
+    "accounts": 1
+}
+```
+
+When no session database exists, the endpoint still returns `200 OK` with
+`databaseExists: false`, empty `sessions`, and zero counts. A `cookieCount` of
+`null` means the stored JSON could not be parsed; no cookie data is disclosed.
+
+### `DELETE /sessions/:email`
+
+Deletes all stored platforms for one case-insensitive, exact account email. The
+email must be URL-encoded as one path value. There is intentionally no API
+endpoint for deleting all sessions.
+
+The bot must be idle. Deleting while a run is starting, running, or stopping
+returns `409 Conflict`, because an active process could otherwise write the
+session back after deletion.
+
+**cURL**
+
+```bash
+curl --request DELETE \
+  --url http://127.0.0.1:3010/sessions/user%40example.com \
+  --header 'Authorization: Bearer YOUR_API_TOKEN'
+```
+
+**Axios**
+
+```js
+const email = 'user@example.com'
+const { data } = await api.delete(`/sessions/${encodeURIComponent(email)}`)
+console.log(data)
+```
+
+```json
+{
+    "deleted": true,
+    "found": true,
+    "removed": 2,
+    "email": "user@example.com",
+    "platforms": ["desktop", "mobile"]
+}
+```
+
+If the account has no stored sessions, the endpoint returns `404 Not Found`
+with code `SESSION_NOT_FOUND`. `DELETE /sessions` without an email and invalid
+email paths return `400 Bad Request`. The endpoint accepts no JSON body.
+
+## Reading diagnostics
 
 ### `GET /diagnostics`
 
@@ -1644,18 +1754,18 @@ curl.exe -sN `
 
 ## HTTP status codes
 
-|                      Status | Meaning in this API                                                                       |
-| --------------------------: | ----------------------------------------------------------------------------------------- |
-|                    `200 OK` | Successful read, config update, or schedule update.                                       |
-|              `202 Accepted` | Start, stop, restart, or shutdown request accepted.                                       |
-|            `204 No Content` | Successful CORS preflight.                                                                |
-|           `400 Bad Request` | Invalid JSON, account selection, arguments, schedule, oversized body, or diagnostic path. |
-|          `401 Unauthorized` | Token required and missing or incorrect.                                                  |
-|             `403 Forbidden` | Config writes, schedule writes, or arbitrary environment overrides are disabled.          |
-|             `404 Not Found` | Unknown endpoint, missing config, capture, or artifact.                                   |
-|              `409 Conflict` | Start requested while active, or stop requested while idle.                               |
-|  `422 Unprocessable Entity` | Proposed config failed validation.                                                        |
-| `500 Internal Server Error` | Unexpected process, file, cron, validator, or request-handling failure.                   |
+|                      Status | Meaning in this API                                                                  |
+| --------------------------: | ------------------------------------------------------------------------------------ |
+|                    `200 OK` | Successful read, config/schedule update, or account session deletion.                |
+|              `202 Accepted` | Start, stop, restart, or shutdown request accepted.                                  |
+|            `204 No Content` | Successful CORS preflight.                                                           |
+|           `400 Bad Request` | Invalid JSON, account/email selection, arguments, schedule, oversized body, or path. |
+|          `401 Unauthorized` | Token required and missing or incorrect.                                             |
+|             `403 Forbidden` | Config writes, schedule writes, or arbitrary environment overrides are disabled.     |
+|             `404 Not Found` | Unknown endpoint, missing config/session, capture, or artifact.                      |
+|              `409 Conflict` | Conflicting run state, including session deletion while a run is active.             |
+|  `422 Unprocessable Entity` | Proposed config failed validation.                                                   |
+| `500 Internal Server Error` | Unexpected process, file, cron, validator, or request-handling failure.              |
 
 Most errors use this shape:
 
@@ -1714,9 +1824,9 @@ rejected because the API intentionally does not use an injection-prone shell.
 
 ## Security guidance
 
-This service can start and stop processes, read logs containing account-related
-information, and potentially reveal or update configuration. Treat it as an
-administrative API.
+This service can start and stop processes, read logs and session metadata,
+delete an account's sessions, and potentially reveal or update configuration.
+Treat it as an administrative API.
 
 - Keep `API_HOST=127.0.0.1` when only local applications need access.
 - Always set `API_TOKEN` before binding to `0.0.0.0` or another non-loopback
@@ -1812,6 +1922,7 @@ starting a second unusable instance.
 | `accounts.js`       | Safe account summaries and child-only account selection/remapping.                    |
 | `configEditor.js`   | Config loading, validation, deep merge, backup, and atomic replacement.               |
 | `scheduleStore.js`  | Schedule validation, persistence, reads, and live crontab application.                |
+| `sessionStore.js`   | Safe session metadata reads and account-specific SQLite session deletion.             |
 | `apply-schedule.js` | Restores a persisted schedule override during Docker startup.                         |
 | `trigger.js`        | Routes Docker cron and `RUN_ON_START` executions through the local API.               |
 | `runCommand.js`     | Cross-platform resolution of the command used to launch the bot.                      |

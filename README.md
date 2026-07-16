@@ -134,6 +134,8 @@ Common uses include:
   `GET /status`;
 - reading live points, logs, errors, account summaries, run history, and error
   diagnostics;
+- listing safe stored-session metadata and deleting the mobile/desktop sessions
+  for one account;
 - starting all accounts with `POST /start` and an empty JSON body;
 - running only one account with `POST /start` and `{"accountIndex":2}`;
 - running all accounts except selected slots with `POST /start` and
@@ -362,6 +364,21 @@ npm run clear-sessions -- email user@example.com
 # Delete every stored session
 npm run clear-sessions -- all
 ```
+
+```bash
+# List safe session metadata
+curl --request GET \
+  --url http://127.0.0.1:3010/sessions \
+  --header 'Authorization: Bearer YOUR_API_TOKEN'
+
+# Delete only user@example.com's mobile and desktop sessions
+curl --request DELETE \
+  --url http://127.0.0.1:3010/sessions/user%40example.com \
+  --header 'Authorization: Bearer YOUR_API_TOKEN'
+```
+
+See the [Control API session documentation](scripts/api/README.md#session-management)
+for response data, Axios examples, and error behavior.
 
 ---
 
