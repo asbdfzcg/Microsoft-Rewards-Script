@@ -175,17 +175,17 @@ Edit `config.json` to customize behavior, or set `CONFIG_*` environment variable
 
 ### Core
 
-| Setting                     | Type    | Default      | Description                                | Docker environment variable           |
-| --------------------------- | ------- | ------------ | ------------------------------------------ | ------------------------------------- |
-| `sessionPath`               | string  | `"sessions"` | Directory to store browser sessions        |                                       |
-| `headless`                  | boolean | `false`      | Run browser invisibly                      | Always `true` in Docker               |
-| `clusters`                  | number  | `1`          | Number of concurrent account clusters      | `CONFIG_CLUSTERS`                     |
-| `errorDiagnostics`          | boolean | `false`      | Enable error diagnostics                   | `CONFIG_ERROR_DIAGNOSTICS`            |
-| `ensureStreakProtection`    | boolean | `true`       | Ensure streak protection is enabled        | `CONFIG_ENSURE_STREAK_PROTECTION`     |
-| `autoClaimPunchcardRewards` | boolean | `false`      | Auto-claim completed punchcard rewards     | `CONFIG_AUTO_CLAIM_PUNCHCARD_REWARDS` |
-| `skipNonPointTasks`         | boolean | `true`       | Skip tasks that award no points            | `CONFIG_SKIP_NON_POINT_TASKS`         |
-| `searchOnBingLocalQueries`  | boolean | `false`      | Use the local query list for ExploreOnBing | `CONFIG_SEARCH_ON_BING_LOCAL`         |
-| `globalTimeout`             | string  | `"30sec"`    | Timeout for all actions                    | `CONFIG_GLOBAL_TIMEOUT`               |
+| Setting                     | Type    | Default      | Description                                                        | Docker environment variable           |
+| --------------------------- | ------- | ------------ | ------------------------------------------------------------------ | ------------------------------------- |
+| `sessionPath`               | string  | `"sessions"` | Directory to store browser sessions                                |                                       |
+| `headless`                  | boolean | `false`      | Run browser invisibly                                              | Always `true` in Docker               |
+| `clusters`                  | number  | `1`          | Number of concurrent account clusters                              | `CONFIG_CLUSTERS`                     |
+| `errorDiagnostics`          | boolean | `false`      | Save error and unknown-login page diagnostics under `diagnostics/` | `CONFIG_ERROR_DIAGNOSTICS`            |
+| `ensureStreakProtection`    | boolean | `true`       | Ensure streak protection is enabled                                | `CONFIG_ENSURE_STREAK_PROTECTION`     |
+| `autoClaimPunchcardRewards` | boolean | `false`      | Auto-claim completed punchcard rewards                             | `CONFIG_AUTO_CLAIM_PUNCHCARD_REWARDS` |
+| `skipNonPointTasks`         | boolean | `true`       | Skip tasks that award no points                                    | `CONFIG_SKIP_NON_POINT_TASKS`         |
+| `searchOnBingLocalQueries`  | boolean | `false`      | Use the local query list for ExploreOnBing                         | `CONFIG_SEARCH_ON_BING_LOCAL`         |
+| `globalTimeout`             | string  | `"30sec"`    | Timeout for all actions                                            | `CONFIG_GLOBAL_TIMEOUT`               |
 
 ### Workers
 
