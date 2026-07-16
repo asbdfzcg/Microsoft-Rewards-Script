@@ -20,6 +20,7 @@
 - [Config Setup](#config-setup)
     - [Build and run the script (bare metal version)](#build-and-run-the-script-bare-metal-version)
 - [Docker](#docker)
+- [Control API and Dashboard](#control-api-and-dashboard)
 - [Nix Setup](#nix-setup)
 - [Configuration Options](#configuration-options)
     - [Core](#core)
@@ -116,6 +117,46 @@ ACCOUNT_1_PASSWORD=your_password
 > [!TIP]
 > Monitor logs with `docker logs microsoft-rewards-script`, useful for viewing passwordless login codes or diagnosing issues.
 > You can also enable a webhook in `compose.yaml` for notifications.
+
+---
+
+## Control API and Dashboard
+
+The optional Control API lets a local dashboard or another trusted tool monitor
+and control the script over HTTP. See the [complete Control API
+documentation](scripts/api/README.md) for setup, authentication, every endpoint,
+request fields, response examples, and security guidance.
+
+Common uses include:
+
+- checking API health and the current run state with `GET /health` and
+  `GET /status`;
+- reading live points, logs, errors, account summaries, run history, and error
+  diagnostics;
+- starting all accounts with `POST /start` and an empty JSON body;
+- running only one account with `POST /start` and `{"accountIndex":2}`;
+- running all accounts except selected slots with `POST /start` and
+  `{"excludedAccountIndexes":[2,4]}`;
+- stopping or restarting a run with `POST /stop` or `POST /restart`;
+- streaming live logs and status updates from `GET /events` using
+  Server-Sent Events (SSE);
+- reading the active configuration and schedule, with config and schedule
+  changes available only when their explicit `API_ALLOW_*` options are enabled.
+
+For example, start only `ACCOUNT_2` with cURL:
+
+```bash
+curl --request POST \
+  --url http://127.0.0.1:3010/start \
+  --header 'Authorization: Bearer YOUR_API_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{"accountIndex":2}'
+```
+
+For a ready-made web interface, use the supported and endorsed
+[Rewards Dashboard](https://github.com/mgrimace/rewards-dashboard). It connects
+to this Control API to manage runs, accounts, schedules, logs, points, and
+related script settings.
 
 ---
 
