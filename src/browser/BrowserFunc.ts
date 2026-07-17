@@ -296,7 +296,8 @@ export default class BrowserFunc {
             this.bot.logger.info(
                 this.bot.isMobile,
                 'BUILD',
-                `Rewards build | id=${this.bot.browser.react.buildId(earnHtml) ?? 'unknown'}`
+                `Rewards build | id=${this.bot.browser.react.buildId(earnHtml) ?? 'unknown'}`,
+                'cyan'
             )
         } catch (error) {
             this.bot.logger.error(

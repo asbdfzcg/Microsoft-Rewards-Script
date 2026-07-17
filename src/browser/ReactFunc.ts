@@ -111,9 +111,11 @@ export default class ReactFunc {
     public buildId(html: string): string | null {
         const combined = this.concatFlightChunks(html)
         return (
-            combined.match(/"buildId":"([A-Za-z0-9_-]{21})"/)?.[1] ??
-            combined.match(/"b":"([A-Za-z0-9_-]{21})"/)?.[1] ??
-            html.match(/\/_next\/static\/([A-Za-z0-9_-]{21})\//)?.[1] ??
+            html.match(/[?&](?:amp;)?dpl=([A-Za-z0-9._-]+)/i)?.[1] ??
+            combined.match(/[?&](?:amp;)?dpl=([A-Za-z0-9._-]+)/i)?.[1] ??
+            combined.match(/"buildId":"([A-Za-z0-9._-]+)"/)?.[1] ??
+            combined.match(/"b":"([A-Za-z0-9._-]{8,})"/)?.[1] ??
+            html.match(/\/_next\/static\/([A-Za-z0-9._-]+)\//)?.[1] ??
             null
         )
     }
