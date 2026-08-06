@@ -179,14 +179,20 @@ namespace RewardsManager
                     var stream = await response.Content.ReadAsStreamAsync();
                     var buffer = new byte[8192];
                     long read = 0;
+                    var lastReport = DateTime.MinValue;
                     int n;
                     while ((n = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                     {
                         await fs.WriteAsync(buffer, 0, n);
                         read += n;
-                        if (total > 0 && read % (256 * 1024) < buffer.Length)
-                            onOutput($"    已下载 {read / 1024 / 1024} / {total / 1024 / 1024} MB");
+                        if (total > 0 && (DateTime.Now - lastReport).TotalSeconds >= 1.0)
+                        {
+                            lastReport = DateTime.Now;
+                            onOutput($"    已下载 {read / (1024.0 * 1024.0):F2} / {total / (1024.0 * 1024.0):F2} MB");
+                        }
                     }
+                    if (total > 0)
+                        onOutput($"    已下载 {total / (1024.0 * 1024.0):F2} / {total / (1024.0 * 1024.0):F2} MB");
                 }
 
                 onOutput($">>> 解压到 {ProjectNodeDir}");

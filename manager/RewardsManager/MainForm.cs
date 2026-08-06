@@ -72,7 +72,10 @@ namespace RewardsManager
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             verifyMode = verify;
             verifySwitchMode = verifySwitch;
-            if (verifyMode || verifySwitchMode) { this.Opacity = 0; this.ShowInTaskbar = false; }
+            // 启动期先不可见，避免控件预创建/首次绘制时的白屏闪烁；
+            // Shown 中完成预渲染后再恢复 Opacity=1
+            this.Opacity = 0;
+            if (verifyMode || verifySwitchMode) { this.ShowInTaskbar = false; }
 
             // 注意：不要加 ControlStyles.AllPaintingInWmPaint。该样式会抑制 WM_ERASEBKGND，
             // 导致窗体/内容区在重绘时不清空背景——切到「配置编辑」这种重页（数十个控件、绘制跨多帧）
@@ -174,7 +177,6 @@ namespace RewardsManager
                 // 不再有 ~1s 首绘卡顿与半透明重影。
                 try
                 {
-                    this.Opacity = 0;
                     int cfgPrev = tabs.SelectedIndex;
                     tabs.SelectedIndex = 1;
                     Application.DoEvents();
@@ -182,9 +184,9 @@ namespace RewardsManager
                     Application.DoEvents();
                     tabs.SelectedIndex = cfgPrev;
                     Application.DoEvents();
-                    this.Opacity = 1;
                 }
-                catch { this.Opacity = 1; }
+                catch { }
+                finally { this.Opacity = 1; }
                 // 自检模式：把真实像素几何写入 geometry.txt 后退出（无需肉眼看截图）
                 if (verifyMode)
                 {
@@ -590,6 +592,7 @@ namespace RewardsManager
                 BackColor = SystemColors.Control
             };
             envBtnRow.Controls.Add(MkButton("保存 .env", (_, _) => SaveEnv()));
+            envBtnRow.Controls.Add(MkButton("从模板创建 .env", (_, _) => CreateEnvFromExample()));
 
             grpEnv.Controls.Add(envBtnRow);
             grpEnv.Controls.Add(envFlow);
@@ -852,7 +855,7 @@ namespace RewardsManager
                     envFlow.Controls.Add(BuildEnvRow(key, val, secret, enabled));
                 }
                 if (envFlow.Controls.Count == 0)
-                    envFlow.Controls.Add(new Label { Text = "（.env 为空或不存在）", AutoSize = true, ForeColor = Color.Gray, Margin = new Padding(0, 4, 0, 4), BackColor = SystemColors.Control });
+                    envFlow.Controls.Add(new Label { Text = "（.env 为空或不存在，可点击「从模板创建 .env」）", AutoSize = true, ForeColor = Color.Gray, Margin = new Padding(0, 4, 0, 4), BackColor = SystemColors.Control });
             }
             catch (Exception ex)
             {
@@ -954,6 +957,32 @@ namespace RewardsManager
             catch (Exception ex)
             {
                 MessageBox.Show("保存失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>从 .env.example 模板创建 .env，便于用户直接填写账号</summary>
+        private void CreateEnvFromExample()
+        {
+            try
+            {
+                if (File.Exists(ProjectPaths.EnvFile))
+                {
+                    MessageBox.Show(".env 已存在，无需创建。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                var example = Path.Combine(ProjectPaths.Root, ".env.example");
+                if (!File.Exists(example))
+                {
+                    MessageBox.Show("模板 .env.example 不存在，无法创建。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                File.Copy(example, ProjectPaths.EnvFile, false);
+                LoadEnv();
+                MessageBox.Show("已从模板创建 .env，请填写你的邮箱和密码。", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("创建失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1085,17 +1114,26 @@ namespace RewardsManager
             return page;
         }
 
-        private void RefreshTaskStatus()
+        private async void RefreshTaskStatus()
         {
-            var (code, output) = ProcessHelper.Run("powershell.exe",
-                "-NoProfile -Command \"$t = Get-ScheduledTask -TaskName 'MicrosoftRewardsScript' -ErrorAction SilentlyContinue; " +
-                "if ($t) { $i = $t | Get-ScheduledTaskInfo; " +
-                "[PSCustomObject]@{ State = $t.State.ToString(); " +
-                "LastRun = $i.LastRunTime.ToString('yyyy-MM-dd HH:mm'); " +
-                "NextRun = $i.NextRunTime.ToString('yyyy-MM-dd HH:mm'); " +
-                "LastResult = $i.LastTaskResult; " +
-                "Triggers = (($t.Triggers | ForEach-Object { $_.CimClass.CimClassName }) -join ' | '); " +
-                "Action = ($t.Actions[0].Execute + ' ' + $t.Actions[0].Arguments) } | ConvertTo-Json -Compress }\"");
+            grpStatus.StatusValue = "刷新中...";
+            grpStatus.StatusValueColor = SystemColors.ControlText;
+            lblTaskDetail.Text = "正在查询计划任务状态...";
+            lblTaskTriggers.Text = "";
+            await System.Threading.Tasks.Task.Run(() => System.Threading.Thread.Sleep(50)); // 让 UI 先刷新
+
+            var (code, output) = await System.Threading.Tasks.Task.Run(() =>
+            {
+                string ps = @"$t = Get-ScheduledTask -TaskName 'MicrosoftRewardsScript' -ErrorAction SilentlyContinue; " +
+                            @"if ($t) { $i = $t | Get-ScheduledTaskInfo; " +
+                            @"[PSCustomObject]@{ State = $t.State.ToString(); " +
+                            @"LastRun = $i.LastRunTime.ToString('yyyy-MM-dd HH:mm'); " +
+                            @"NextRun = $i.NextRunTime.ToString('yyyy-MM-dd HH:mm'); " +
+                            @"LastResult = $i.LastTaskResult; " +
+                            @"Triggers = (($t.Triggers | ForEach-Object { $_.CimClass.CimClassName }) -join ' | '); " +
+                            @"Action = ($t.Actions[0].Execute + ' ' + $t.Actions[0].Arguments) } | ConvertTo-Json -Compress }";
+                return ProcessHelper.Run("powershell.exe", "-NoProfile -Command \"" + ps + "\"");
+            });
             if (code == 0 && !string.IsNullOrWhiteSpace(output) && output.TrimStart().StartsWith("{"))
             {
                 try
@@ -1221,17 +1259,6 @@ namespace RewardsManager
             };
             grpLog.Controls.Add(txtChangelog);
 
-            var hintFlow = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                AutoSize = true,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
-                Margin = new Padding(0, 0, 0, 8)
-            };
-            AddWrappedHint(hintFlow,
-                "脚本每次运行时会自动检查新版本; 更新 = git pull + npm install + 重新构建。");
-
             var btnRow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Bottom,
@@ -1249,7 +1276,6 @@ namespace RewardsManager
 
             panel.Controls.Add(grpLog);
             panel.Controls.Add(btnRow);
-            panel.Controls.Add(hintFlow);
             panel.Controls.Add(verRow);
             panel.Controls.Add(lblUpdateState);
             page.Controls.Add(panel);
@@ -1312,17 +1338,31 @@ namespace RewardsManager
             }
         }
 
-        private void RecheckUpdates()
+        private async void RecheckUpdates()
         {
             lblUpdateState.Text = "正在检查更新...";
             lblUpdateState.ForeColor = Color.Black;
-            var node = File.Exists(@"D:\Program Files\nodejs\node.exe") ? @"D:\Program Files\nodejs\node.exe" : "node.exe";
-            System.Threading.Tasks.Task.Run(() =>
+            btnUpdate.Enabled = btnSkip.Enabled = false;
+
+            var node = EnvCheck.FindNodePath();
+            var result = await System.Threading.Tasks.Task.Run(() =>
+                ProcessHelper.Run(node,
+                    "-e \"require('./dist/util/UpdateChecker').checkForUpdates().then(()=>process.exit(0))\"",
+                    ProjectPaths.Root, 30000));
+
+            RefreshUpdateStatus();
+
+            if (result.exitCode != 0)
             {
-                ProcessHelper.Run(node, "-e \"require('./dist/util/UpdateChecker').checkForUpdates().then(()=>process.exit(0))\"",
-                    ProjectPaths.Root, 20000);
-                Invoke((Action)(() => RefreshUpdateStatus()));
-            });
+                string detail = string.IsNullOrWhiteSpace(result.output) ? "" : "\n\n" + result.output.Trim();
+                MessageBox.Show($"检查更新失败（退出码 {result.exitCode}）。{detail}", "检查失败",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            else if (!File.Exists(ProjectPaths.UpdateStatusFile))
+            {
+                MessageBox.Show("检查完成，但没有生成更新状态文件。", "提示",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private async System.Threading.Tasks.Task DoUpdate()

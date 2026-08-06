@@ -49,7 +49,16 @@ namespace RewardsManager
             btnRow.Controls.Add(btnInstallNode);
             btnRow.Controls.Add(btnEnter);
 
-            txtOut = new RichTextBox { Dock = DockStyle.Fill, ReadOnly = true, Font = new Font("Consolas", 9F), Margin = new Padding(10, 0, 10, 0), BackColor = Color.White };
+            txtOut = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                Font = new Font("Consolas", 9F),
+                Margin = new Padding(10, 0, 10, 0),
+                BackColor = Color.White,
+                WordWrap = false,
+                ScrollBars = RichTextBoxScrollBars.Both
+            };
 
             root.Controls.Add(statusPanel, 0, 0);
             root.Controls.Add(txtOut, 0, 1);
