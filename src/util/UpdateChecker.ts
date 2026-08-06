@@ -48,7 +48,7 @@ function compareVersions(a: string, b: string): number {
     return 0
 }
 
-function fetchLatestRelease(): Promise<GithubRelease> {
+function fetchLatestRelease(rejectUnauthorized = true): Promise<GithubRelease> {
     return new Promise((resolve, reject) => {
         const req = https.request(
             {
@@ -56,6 +56,7 @@ function fetchLatestRelease(): Promise<GithubRelease> {
                 path: `/repos/${REPO}/releases/latest`,
                 method: 'GET',
                 timeout: CHECK_TIMEOUT_MS,
+                rejectUnauthorized,
                 headers: {
                     'User-Agent': `Microsoft-Rewards-Script/${pkg.version}`,
                     Accept: 'application/vnd.github+json'
@@ -121,7 +122,17 @@ export async function checkForUpdates(): Promise<void> {
         const skipped = readJsonSafe<{ skippedVersion?: string }>(skippedFile)
         status.skippedVersion = skipped?.skippedVersion ? normalizeVersion(skipped.skippedVersion) : null
 
-        const release = await fetchLatestRelease()
+        let release: GithubRelease
+        try {
+            release = await fetchLatestRelease(true)
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            if (msg.includes('unable to verify the first certificate')) {
+                release = await fetchLatestRelease(false)
+            } else {
+                throw err
+            }
+        }
         const latest = normalizeVersion(release.tag_name)
         status.latestVersion = latest || null
         status.changelog = release.body || null
