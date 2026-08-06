@@ -13,65 +13,49 @@ namespace RewardsManager
     /// </summary>
     internal class EnvWizardForm : Form
     {
-        private readonly TableLayoutPanel root;
         private readonly TableLayoutPanel statusPanel;
         private readonly FlowLayoutPanel btnRow;
+        private readonly Panel panelOut;
         private readonly RichTextBox txtOut;
         private readonly Button btnInstallDeps, btnInstallNode, btnEnter, btnCancel;
         private readonly bool _standalone;
         private readonly ToolTip toolTip = new ToolTip();
         private bool _busy;
         private CancellationTokenSource _cts;
-        private int _lastOutputHeight;
 
         public EnvWizardForm(bool standalone = false)
         {
             _standalone = standalone;
             Text = "环境初始化";
-            Width = 800;
-            Height = 620;
-            MinimumSize = new Size(760, 520);
+            Width = 820;
+            Height = 640;
+            MinimumSize = new Size(780, 560);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             FormClosing += (_, e) => { if (_busy && MessageBox.Show("安装正在进行中，确定要取消并退出吗？", "确认取消", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) e.Cancel = true; };
 
-            root = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 3,
-                Margin = Padding.Empty,
-                Padding = new Padding(0)
-            };
-            // 状态区、按钮行固定高度，输出区占剩余空间。
-            // 注意：TableLayoutPanel 的 Absolute 行高要包含子控件 Margin。
-            const int statusHeight = 140;  // 5行×24 + 上下Margin各10
-            const int btnHeight = 48;      // 按钮36 + 上下Margin各6
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, statusHeight));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, btnHeight));
-
-            // 状态区：使用 TableLayoutPanel 每行两列，缩放时自动换行
+            // 状态区：顶部，自动根据内容撑高
             statusPanel = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Top,
                 ColumnCount = 2,
-                AutoSize = false,
-                Margin = new Padding(10, 10, 10, 10),
+                AutoSize = true,
+                Margin = new Padding(10, 12, 10, 8),
                 Padding = Padding.Empty
             };
-            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240f));
+            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250f));
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
+            // 按钮行：底部，固定高度
             btnRow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Bottom,
                 FlowDirection = FlowDirection.LeftToRight,
                 AutoSize = false,
                 WrapContents = false,
-                Height = 36,
-                Margin = new Padding(10, 6, 10, 6)
+                Height = 44,
+                Margin = new Padding(10, 8, 10, 10)
             };
             btnInstallDeps = new Button { Text = "安装依赖并构建", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
             btnInstallNode = new Button { Text = "安装/修复 Node", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
@@ -86,9 +70,8 @@ namespace RewardsManager
             btnRow.Controls.Add(btnCancel);
             btnRow.Controls.Add(btnEnter);
 
-            // 输出区外层 Panel，RichTextBox 在其内 Dock=Fill 铺满。
-            // 中间行的高度由 SizeChanged 动态控制（见 UpdateOutputHeight），保证最小 280px。
-            var panelOut = new Panel
+            // 输出区：Dock=Fill 占满状态区与按钮行之间的剩余空间
+            panelOut = new Panel
             {
                 Dock = DockStyle.Fill,
                 Margin = new Padding(10, 0, 10, 0)
@@ -105,34 +88,14 @@ namespace RewardsManager
             };
             panelOut.Controls.Add(txtOut);
 
-            root.Controls.Add(statusPanel, 0, 0);
-            root.Controls.Add(panelOut, 0, 1);
-            root.Controls.Add(btnRow, 0, 2);
-            Controls.Add(root);
-
-            // 窗口缩放时把剩余空间分配给输出区；不修改 Form.MinimumSize，避免窗口跳动影响按钮行
-            this.SizeChanged += UpdateOutputHeight;
-            this.Shown += (_, _) => UpdateOutputHeight(null, EventArgs.Empty);
+            Controls.Add(panelOut);
+            Controls.Add(statusPanel);
+            Controls.Add(btnRow);
 
             RefreshStatus();
         }
 
         private void AppendOut(string s) => txtOut.AppendText(s + Environment.NewLine);
-
-        /// <summary>
-        /// 窗口缩放时把 TableLayoutPanel 的剩余空间全部分配给中间输出行，最小 280px。
-        /// 仅修改中间行的绝对高度，不触碰状态行/按钮行，也不改 Form.MinimumSize，按钮位置保持稳定。
-        /// </summary>
-        private void UpdateOutputHeight(object sender, EventArgs e)
-        {
-            int available = root.ClientSize.Height - 140 - 48 - root.Padding.Vertical;
-            int target = Math.Max(260, available);
-            if (target == _lastOutputHeight) return;
-            _lastOutputHeight = target;
-
-            root.RowStyles[1].SizeType = SizeType.Absolute;
-            root.RowStyles[1].Height = target;
-        }
 
         private void RefreshStatus()
         {
@@ -180,13 +143,13 @@ namespace RewardsManager
         private void AddStatus(string label, string value, bool ok)
         {
             int row = statusPanel.RowCount++;
-            statusPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24f));
+            statusPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             var lblName = new Label
             {
                 Text = label,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                Margin = new Padding(0, 4, 6, 2)
+                Margin = new Padding(0, 2, 6, 2)
             };
             var lblValue = new Label
             {
@@ -195,7 +158,7 @@ namespace RewardsManager
                 AutoEllipsis = true,
                 ForeColor = ok ? Color.DarkGreen : Color.DarkRed,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                Margin = new Padding(0, 4, 0, 2)
+                Margin = new Padding(0, 2, 0, 2)
             };
             toolTip.SetToolTip(lblValue, value);
             statusPanel.Controls.Add(lblName, 0, row);
