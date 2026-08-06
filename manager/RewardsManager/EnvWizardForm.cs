@@ -86,7 +86,7 @@ namespace RewardsManager
                 Margin = new Padding(10, 0, 10, 0),
                 BackColor = Color.White,
                 WordWrap = false,
-                ScrollBars = RichTextBoxScrollBars.Both,
+                ScrollBars = RichTextBoxScrollBars.ForcedBoth,
                 MinimumSize = new Size(200, 260)
             };
 

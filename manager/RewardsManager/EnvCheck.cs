@@ -79,12 +79,27 @@ namespace RewardsManager
         public static bool HasBrowser()
         {
             var node = FindNodePath();
+
+            // 1. 优先检查项目内（配合 PLAYWRIGHT_BROWSERS_PATH=0，沙盒/便携环境用）
             var r = ProcessHelper.Run(node,
+                "-e \"try{process.env.PLAYWRIGHT_BROWSERS_PATH='0';const{chromium}=require('patchright');process.stdout.write(chromium.executablePath())}catch(e){process.stdout.write('')}\"",
+                ProjectPaths.Root, 15000);
+            if (r.exitCode == 0 && !string.IsNullOrWhiteSpace(r.output))
+            {
+                var path = r.output.Trim();
+                if (!string.IsNullOrEmpty(path) && File.Exists(path)) return true;
+            }
+
+            // 2. 再检查系统默认位置（本地用户已安装到用户目录/.cache 等）
+            r = ProcessHelper.Run(node,
                 "-e \"try{const{chromium}=require('patchright');process.stdout.write(chromium.executablePath())}catch(e){process.stdout.write('')}\"",
                 ProjectPaths.Root, 15000);
-            if (r.exitCode != 0 || string.IsNullOrWhiteSpace(r.output)) return false;
-            var path = r.output.Trim();
-            return !string.IsNullOrEmpty(path) && File.Exists(path);
+            if (r.exitCode == 0 && !string.IsNullOrWhiteSpace(r.output))
+            {
+                var path = r.output.Trim();
+                return !string.IsNullOrEmpty(path) && File.Exists(path);
+            }
+            return false;
         }
 
         public static bool HasConfig()
