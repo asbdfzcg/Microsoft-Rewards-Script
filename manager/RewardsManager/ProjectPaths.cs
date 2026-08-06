@@ -3,7 +3,7 @@ using System.IO;
 
 namespace RewardsManager
 {
-    /// <summary>定位项目根目录（向上查找含 config.json 的目录）</summary>
+    /// <summary>定位项目根目录（向上查找含 package.json 的目录；发布包/便携场景无 config.json 也能定位）</summary>
     internal static class ProjectPaths
     {
         public static string Root { get; } = FindRoot();
@@ -17,11 +17,12 @@ namespace RewardsManager
 
         private static string FindRoot()
         {
+            // package.json 是项目固有文件（开发/发布包都带），用它定位根目录，
+            // 不再要求 config.json（用户首次运行才生成）。
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)
             {
-                if (File.Exists(Path.Combine(dir.FullName, "config.json")) &&
-                    File.Exists(Path.Combine(dir.FullName, "package.json")))
+                if (File.Exists(Path.Combine(dir.FullName, "package.json")))
                     return dir.FullName;
                 dir = dir.Parent;
             }
