@@ -147,14 +147,9 @@ namespace RewardsManager
                 ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true, extraEnv, cancellationToken);
             if (code != 0) return code;
 
-            // 发布包已自带 dist/ 编译产物时无需再构建；避免 npm run build 里的 rimraf dist 误删产物
-            if (HasDist())
-            {
-                onOutput(">>> dist/ 已存在，跳过 npm run build");
-                return 0;
-            }
-
-            onOutput(">>> dist/ 缺失，执行 npm run build（需要 tsconfig.json + src/）");
+            // 发布包不含 dist/，统一从源码构建（tsconfig.json + src/）。
+            // 用户修改配置后重新运行向导即可重建 dist/，故此处始终执行 npm run build。
+            onOutput(">>> 执行 npm run build（需要 tsconfig.json + src/）");
             code = await ProcessHelper.RunWithOutputAsync(
                 "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" run build", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true, extraEnv, cancellationToken);
             return code;
