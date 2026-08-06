@@ -45,6 +45,7 @@ $files = @(
     "autorun/run-rewards.ps1",
     "autorun/setup-task.ps1",
     "autorun/diagnose.ps1",
+    "autorun/diagnose.bat",
     "autorun/run-manual.bat",
     "autorun/setup-task.bat"
 )
