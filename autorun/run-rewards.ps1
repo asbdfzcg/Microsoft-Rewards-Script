@@ -133,6 +133,9 @@ try {
         exit 1
     }
 
+    # 让 patchright/playwright 使用项目内浏览器（与 RewardsManager 环境初始化保持一致）
+    $env:PLAYWRIGHT_BROWSERS_PATH = '0'
+
     # 同时输出到终端与日志文件（不能赋值给变量，否则终端看不到输出）
     # --no-warnings 屏蔽 Node.js v24 的 SQLite 实验性警告等杂讯
     & $nodeExe --no-warnings (Join-Path $ProjectDir 'dist\index.js') 2>&1 | Tee-Object -FilePath $RunLog

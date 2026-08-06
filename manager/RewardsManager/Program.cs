@@ -13,6 +13,10 @@ namespace RewardsManager
             // 注册代码页提供器，否则 Encoding.GetEncoding(936/GBK) 会抛 NotSupportedException
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+            // 让 patchright/playwright 把浏览器下载到项目内 node_modules/.local-browsers，
+            // 避免沙盒/便携环境或不同用户目录导致找不到浏览器。
+            Environment.SetEnvironmentVariable("PLAYWRIGHT_BROWSERS_PATH", "0");
+
             AppDomain.CurrentDomain.UnhandledException += (_, e) => LogException("UnhandledException", e.ExceptionObject as Exception);
             Application.ThreadException += (_, e) => LogException("ThreadException", e.Exception);
             ApplicationConfiguration.Initialize();

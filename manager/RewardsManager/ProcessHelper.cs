@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -79,13 +81,17 @@ namespace RewardsManager
         /// </summary>
         /// <param name="pathPrepend">临时插入 PATH 最前面的目录（例如便携 Node 目录），让子进程能找到同目录下的 exe</param>
         /// <param name="useUtf8">为 true 时先执行 chcp 65001 并改用 UTF-8 读取，适合 npm/node 命令；false 时使用系统 OEM 编码</param>
+        /// <param name="extraEnv">需要额外设置的环境变量键值对</param>
+        /// <param name="cancellationToken">取消令牌，触发时终止子进程</param>
         public static async Task<int> RunWithOutputAsync(
             string fileName,
             string arguments,
             string workDir,
             Action<string> onOutput,
             string pathPrepend = null,
-            bool useUtf8 = false)
+            bool useUtf8 = false,
+            Dictionary<string, string> extraEnv = null,
+            CancellationToken cancellationToken = default)
         {
             var psi = new ProcessStartInfo
             {
@@ -108,12 +114,37 @@ namespace RewardsManager
                 psi.EnvironmentVariables["PATH"] = pathPrepend.TrimEnd(';') + ";" + currentPath;
             }
 
+            if (extraEnv != null)
+            {
+                foreach (var kv in extraEnv)
+                {
+                    if (kv.Value == null)
+                        psi.EnvironmentVariables.Remove(kv.Key);
+                    else
+                        psi.EnvironmentVariables[kv.Key] = kv.Value;
+                }
+            }
+
             using var p = Process.Start(psi);
             p.OutputDataReceived += (_, e) => { if (e.Data != null) onOutput(e.Data); };
             p.ErrorDataReceived += (_, e) => { if (e.Data != null) onOutput(e.Data); };
             p.BeginOutputReadLine();
             p.BeginErrorReadLine();
-            await p.WaitForExitAsync();
+
+            if (cancellationToken.CanBeCanceled)
+            {
+                await using (cancellationToken.Register(() =>
+                {
+                    try { if (!p.HasExited) p.Kill(true); } catch { }
+                }))
+                {
+                    await p.WaitForExitAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                await p.WaitForExitAsync();
+            }
             return p.ExitCode;
         }
     }

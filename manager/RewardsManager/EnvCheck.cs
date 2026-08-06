@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -99,7 +101,7 @@ namespace RewardsManager
         }
 
         /// <summary>安装依赖 + 下载浏览器内核 + 构建，实时回传输出</summary>
-        public static async Task<int> InstallDepsAsync(Action<string> onOutput)
+        public static async Task<int> InstallDepsAsync(Action<string> onOutput, CancellationToken cancellationToken = default)
         {
             var node = FindNodePath();
             var nodeDir = Path.GetDirectoryName(node);
@@ -109,19 +111,30 @@ namespace RewardsManager
             // 把 node.exe 所在目录临时加到 PATH 最前，确保 npx/npm 脚本能直接调用 node
             var pathPrepend = Directory.Exists(nodeDir) ? nodeDir : null;
 
+            // 非交互 + 把浏览器下载到项目内，避免沙盒/便携环境丢失
+            var extraEnv = new Dictionary<string, string>
+            {
+                ["CI"] = "true",
+                ["npm_config_yes"] = "true",
+                ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+            };
+
             onOutput(">>> npm install");
             int code = await ProcessHelper.RunWithOutputAsync(
-                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" install", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true);
+                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" install", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true, extraEnv, cancellationToken);
             if (code != 0) return code;
 
-            onOutput(">>> npx patchright install chromium");
+            // 直接用 node 跑 patchright/cli.js，绕过 npm exec 在 Node 24 上可能 spawn .cmd 的兼容问题
+            string patchrightCli = Path.Combine(ProjectPaths.Root, "node_modules", "patchright", "cli.js");
+            onOutput(">>> 下载浏览器内核（patchright chromium），可能需要 1-5 分钟，请耐心等待...");
             code = await ProcessHelper.RunWithOutputAsync(
-                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" exec patchright install chromium", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true);
+                "cmd.exe", $"/c chcp 65001 >nul & \"{node}\" \"{patchrightCli}\" install chromium",
+                ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true, extraEnv, cancellationToken);
             if (code != 0) return code;
 
             onOutput(">>> npm run build");
             code = await ProcessHelper.RunWithOutputAsync(
-                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" run build", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true);
+                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" run build", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true, extraEnv, cancellationToken);
             return code;
         }
 
