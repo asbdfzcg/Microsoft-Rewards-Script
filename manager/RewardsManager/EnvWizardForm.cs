@@ -29,8 +29,8 @@ namespace RewardsManager
             _standalone = standalone;
             Text = "环境初始化";
             Width = 800;
-            Height = 720;
-            MinimumSize = new Size(760, 680);
+            Height = 700;
+            MinimumSize = new Size(760, 620);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -44,29 +44,33 @@ namespace RewardsManager
                 Margin = Padding.Empty,
                 Padding = new Padding(0)
             };
-            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 320f));
-            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            // 状态区、按钮行固定高度，输出区占剩余空间，彻底避免 AutoSize 算错导致裁切
+            const int statusHeight = 130;
+            const int btnHeight = 48;
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, statusHeight));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, btnHeight));
 
             // 状态区：使用 TableLayoutPanel 每行两列，缩放时自动换行
             statusPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                AutoSize = true,
-                Margin = new Padding(10, 12, 10, 6),
+                AutoSize = false,
+                Margin = new Padding(10, 10, 10, 6),
                 Padding = Padding.Empty
             };
-            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
+            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240f));
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             btnRow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                AutoSize = true,
+                AutoSize = false,
                 WrapContents = false,
-                Margin = new Padding(10, 6, 10, 12)
+                Height = 48,
+                Margin = new Padding(10, 6, 10, 10)
             };
             btnInstallDeps = new Button { Text = "安装依赖并构建", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
             btnInstallNode = new Button { Text = "安装/修复 Node", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
@@ -120,12 +124,8 @@ namespace RewardsManager
         /// </summary>
         private void UpdateOutputHeight(object sender, EventArgs e)
         {
-            int hStatus = statusPanel.Height;
-            int hBtn = btnRow.Height;
-            if (hStatus == 0 || hBtn == 0) return; // 尚未布局完成，等 Shown/Resize 再算
-
-            int available = root.ClientSize.Height - hStatus - hBtn - root.Padding.Vertical;
-            int target = Math.Max(280, available);
+            int available = root.ClientSize.Height - 130 - 48 - root.Padding.Vertical;
+            int target = Math.Max(260, available);
             if (target == _lastOutputHeight) return;
             _lastOutputHeight = target;
 
@@ -179,24 +179,22 @@ namespace RewardsManager
         private void AddStatus(string label, string value, bool ok)
         {
             int row = statusPanel.RowCount++;
-            statusPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            statusPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24f));
             var lblName = new Label
             {
                 Text = label,
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Margin = new Padding(0, 2, 6, 2)
+                AutoSize = true,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                Margin = new Padding(0, 3, 6, 2)
             };
             var lblValue = new Label
             {
                 Text = value,
-                AutoSize = false,
+                AutoSize = true,
                 AutoEllipsis = true,
                 ForeColor = ok ? Color.DarkGreen : Color.DarkRed,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Margin = new Padding(0, 2, 0, 2)
+                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                Margin = new Padding(0, 3, 0, 2)
             };
             toolTip.SetToolTip(lblValue, value);
             statusPanel.Controls.Add(lblName, 0, row);
