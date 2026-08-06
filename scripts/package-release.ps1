@@ -36,6 +36,7 @@ $files = @(
     "package.json",
     "package-lock.json",
     "config.example.json",
+    ".env.example",
     "env.example",
     "tsconfig.json",
     "src/",
@@ -97,7 +98,7 @@ try {
     Log "python zip result: $pyOut"
     Log "已生成发布包: $zip"
     Log "版本: v$version   大小: $([math]::Round((Get-Item $zip).Length / 1MB, 2)) MB"
-    Log "内容: package.json, config.example.json, env.example, tsconfig.json, src/(已裁剪测试/示例), scripts/main/copyAssets.js, autorun/(RewardsManager.exe + 脚本)"
+    Log "内容: package.json, config.example.json, .env.example, env.example, tsconfig.json, src/(已裁剪测试/示例), scripts/main/copyAssets.js, autorun/(RewardsManager.exe + 脚本)"
     Log "用户解压后: 双击 autorun/RewardsManager.exe -> 向导自动装 Node/依赖/浏览器 -> 从源码构建 dist/"
 } catch {
     Log "ZIP ERROR: $($_.Exception.GetType().Name): $($_.Exception.Message)"

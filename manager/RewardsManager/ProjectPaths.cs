@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace RewardsManager
@@ -17,9 +18,14 @@ namespace RewardsManager
 
         private static string FindRoot()
         {
-            // package.json 是项目固有文件（开发/发布包都带），用它定位根目录，
-            // 不再要求 config.json（用户首次运行才生成）。
-            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            // 用进程主模块路径作为起点（单文件发布时 AppContext.BaseDirectory 是临时解压目录，不可靠）。
+            // 从 exe 所在目录向上查找 package.json，即可兼容开发、发布包、便携运行等各种场景。
+            string exePath = Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrWhiteSpace(exePath))
+                exePath = AppContext.BaseDirectory;
+
+            var startDir = Path.GetDirectoryName(exePath);
+            var dir = string.IsNullOrEmpty(startDir) ? null : new DirectoryInfo(startDir);
             while (dir != null)
             {
                 if (File.Exists(Path.Combine(dir.FullName, "package.json")))
@@ -27,7 +33,8 @@ namespace RewardsManager
                 dir = dir.Parent;
             }
             // 回退：exe 位于 autorun/ 时取其父目录
-            return Directory.GetParent(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar))?.FullName
+            return Directory.GetParent(exePath.TrimEnd(Path.DirectorySeparatorChar))?.FullName
+                   ?? Path.GetDirectoryName(exePath)
                    ?? AppContext.BaseDirectory;
         }
     }
