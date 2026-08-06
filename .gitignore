@@ -22,4 +22,7 @@ geometry.txt
 /autorun/logs/
 /autorun/.last-run-date
 /autorun/update-status.json
+/autorun/.run-lock
 /autorun/*.pdb
+# 例外：随仓库分发的预编译管理程序（framework-dependent，目标机需装 .NET 8 桌面运行时）
+!autorun/RewardsManager.exe

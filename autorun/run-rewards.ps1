@@ -44,6 +44,20 @@ function Write-Err([string]$msg) {
     Add-Content -Path $ErrorLog -Value $line -Encoding UTF8
 }
 
+# 自动探测 Node.js 可执行文件路径（优先 PATH，其次常见安装目录与 tools/node）
+function Find-Node {
+    $p = Get-Command node.exe -ErrorAction SilentlyContinue
+    if ($p) { return $p.Source }
+    $candidates = @(
+        (Join-Path $env:LOCALAPPDATA 'nodejs\node.exe'),
+        'C:\Program Files\nodejs\node.exe',
+        'D:\Program Files\nodejs\node.exe',
+        (Join-Path $ProjectDir 'tools\node\node.exe')
+    )
+    foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
+    return $null
+}
+
 # ---------- 1. 等待 1 秒后最小化 Windows Terminal 窗口 ----------
 Start-Sleep -Seconds 1
 try {
@@ -67,16 +81,12 @@ if (Test-Path $LockFile) {
 New-Item -ItemType File -Path $LockFile -Force | Out-Null
 
 try {
-    # ---------- 3. 刷新 PATH，优先使用系统 Node.js（D:\Program Files\nodejs） ----------
+    # ---------- 3. 刷新 PATH，移除可能干扰的条目，让系统 Node 可被 PATH 找到 ----------
     $machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath    = [System.Environment]::GetEnvironmentVariable('Path', 'User')
     $env:Path = ($machinePath + ';' + $userPath -split ';' |
         Where-Object { $_ -and $_ -notmatch 'TRAE|workbuddy[\\/]binaries' } |
         Select-Object -Unique) -join ';'
-    $sysNode = 'D:\Program Files\nodejs'
-    if (Test-Path (Join-Path $sysNode 'node.exe')) {
-        $env:Path = "$sysNode;$env:Path"
-    }
 
     # ---------- 4. 时间检查 ----------
     if (-not $Force -and (Get-Date).Hour -lt $MinHour) {
@@ -117,8 +127,11 @@ try {
 
     # ---------- 7. 执行主脚本 ----------
     Set-Location $ProjectDir
-    $nodeExe = Join-Path $sysNode 'node.exe'
-    if (-not (Test-Path $nodeExe)) { $nodeExe = 'node.exe' }
+    $nodeExe = Find-Node
+    if (-not $nodeExe) {
+        Write-Err "未找到 Node.js（需 ≥24）。请先安装 Node，或从 RewardsManager 完成环境初始化。"
+        exit 1
+    }
 
     # 同时输出到终端与日志文件（不能赋值给变量，否则终端看不到输出）
     # --no-warnings 屏蔽 Node.js v24 的 SQLite 实验性警告等杂讯

@@ -120,6 +120,7 @@ namespace RewardsManager
 
             Load += (_, _) =>
             {
+                EnsureConfig();
                 RefreshLogs();
                 LoadConfig();
                 LoadEnv();
@@ -194,11 +195,16 @@ namespace RewardsManager
                         Application.Exit();
                     }));
                 }
-                else if (verifySwitchMode)
-                {
-                    this.BeginInvoke(new Action(() => { _ = RunVerifySwitch(); }));
-                }
-            };
+            else if (verifySwitchMode)
+            {
+                this.BeginInvoke(new Action(() => { _ = RunVerifySwitch(); }));
+            }
+            else
+            {
+                EnsureConfig();
+                MaybeShowEnvWizard();
+            }
+        };
             Activated += (_, _) =>
             {
                 tabs.SelectedTab?.PerformLayout();
@@ -807,6 +813,32 @@ namespace RewardsManager
             }
         }
 
+        /// <summary>若 config.json 不存在，从 config.example.json 复制一份，避免首次打开报错</summary>
+        private void EnsureConfig()
+        {
+            try
+            {
+                if (!File.Exists(ProjectPaths.ConfigFile))
+                {
+                    var example = Path.Combine(ProjectPaths.Root, "config.example.json");
+                    if (File.Exists(example))
+                        File.Copy(example, ProjectPaths.ConfigFile, false);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>环境不全（Node/依赖/dist/浏览器任一缺失）时弹出初始化向导</summary>
+        private void MaybeShowEnvWizard()
+        {
+            try
+            {
+                if (EnvCheck.NeedsSetup())
+                    new EnvWizardForm().ShowDialog(this);
+            }
+            catch { }
+        }
+
         private void LoadEnv()
         {
             envFlow.Controls.Clear();
@@ -1050,6 +1082,7 @@ namespace RewardsManager
                 });
             }));
             opsRow.Controls.Add(MkButton("刷新状态", (_, _) => RefreshTaskStatus()));
+            opsRow.Controls.Add(MkButton("环境设置", (_, _) => new EnvWizardForm().ShowDialog(this)));
 
             var timeRow = new FlowLayoutPanel
             {
