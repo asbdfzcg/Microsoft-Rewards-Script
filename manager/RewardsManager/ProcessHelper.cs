@@ -74,8 +74,18 @@ namespace RewardsManager
             Process.Start(psi);
         }
 
-        /// <summary>异步运行命令并实时输出到回调（用于更新窗口）</summary>
-        public static async Task<int> RunWithOutputAsync(string fileName, string arguments, string workDir, Action<string> onOutput)
+        /// <summary>
+        /// 异步运行命令并实时输出到回调（用于更新窗口）。
+        /// </summary>
+        /// <param name="pathPrepend">临时插入 PATH 最前面的目录（例如便携 Node 目录），让子进程能找到同目录下的 exe</param>
+        /// <param name="useUtf8">为 true 时先执行 chcp 65001 并改用 UTF-8 读取，适合 npm/node 命令；false 时使用系统 OEM 编码</param>
+        public static async Task<int> RunWithOutputAsync(
+            string fileName,
+            string arguments,
+            string workDir,
+            Action<string> onOutput,
+            string pathPrepend = null,
+            bool useUtf8 = false)
         {
             var psi = new ProcessStartInfo
             {
@@ -86,9 +96,18 @@ namespace RewardsManager
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                StandardOutputEncoding = ConsoleEncoding,
-                StandardErrorEncoding = ConsoleEncoding
+                StandardOutputEncoding = useUtf8 ? Encoding.UTF8 : ConsoleEncoding,
+                StandardErrorEncoding = useUtf8 ? Encoding.UTF8 : ConsoleEncoding
             };
+
+            if (!string.IsNullOrWhiteSpace(pathPrepend))
+            {
+                var currentPath = psi.EnvironmentVariables.ContainsKey("PATH")
+                    ? psi.EnvironmentVariables["PATH"]
+                    : Environment.GetEnvironmentVariable("PATH") ?? "";
+                psi.EnvironmentVariables["PATH"] = pathPrepend.TrimEnd(';') + ";" + currentPath;
+            }
+
             using var p = Process.Start(psi);
             p.OutputDataReceived += (_, e) => { if (e.Data != null) onOutput(e.Data); };
             p.ErrorDataReceived += (_, e) => { if (e.Data != null) onOutput(e.Data); };

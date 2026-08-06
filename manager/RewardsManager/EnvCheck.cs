@@ -102,19 +102,26 @@ namespace RewardsManager
         public static async Task<int> InstallDepsAsync(Action<string> onOutput)
         {
             var node = FindNodePath();
-            var npm = Path.Combine(Path.GetDirectoryName(node), "npm.cmd");
+            var nodeDir = Path.GetDirectoryName(node);
+            var npm = Path.Combine(nodeDir, "npm.cmd");
             if (!File.Exists(npm)) npm = "npm.cmd";
 
+            // 把 node.exe 所在目录临时加到 PATH 最前，确保 npx/npm 脚本能直接调用 node
+            var pathPrepend = Directory.Exists(nodeDir) ? nodeDir : null;
+
             onOutput(">>> npm install");
-            int code = await ProcessHelper.RunWithOutputAsync("cmd.exe", $"/c \"{npm}\" install", ProjectPaths.Root, onOutput);
+            int code = await ProcessHelper.RunWithOutputAsync(
+                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" install", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true);
             if (code != 0) return code;
 
             onOutput(">>> npx patchright install chromium");
-            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", $"/c \"{npm}\" exec patchright install chromium", ProjectPaths.Root, onOutput);
+            code = await ProcessHelper.RunWithOutputAsync(
+                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" exec patchright install chromium", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true);
             if (code != 0) return code;
 
             onOutput(">>> npm run build");
-            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", $"/c \"{npm}\" run build", ProjectPaths.Root, onOutput);
+            code = await ProcessHelper.RunWithOutputAsync(
+                "cmd.exe", $"/c chcp 65001 >nul & \"{npm}\" run build", ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true);
             return code;
         }
 
