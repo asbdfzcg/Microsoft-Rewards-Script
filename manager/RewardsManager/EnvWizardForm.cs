@@ -30,7 +30,7 @@ namespace RewardsManager
             Text = "环境初始化";
             Width = 760;
             Height = 680;
-            MinimumSize = new Size(640, 520);
+            MinimumSize = new Size(640, 600);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -185,7 +185,7 @@ namespace RewardsManager
                 Text = label,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                Margin = new Padding(0, 4, 6, 2)
+                Margin = new Padding(0, 2, 6, 2)
             };
             var lblValue = new Label
             {
@@ -194,8 +194,9 @@ namespace RewardsManager
                 AutoEllipsis = true,
                 ForeColor = ok ? Color.DarkGreen : Color.DarkRed,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                Margin = new Padding(0, 4, 0, 2)
+                Margin = new Padding(0, 2, 0, 2)
             };
+            toolTip.SetToolTip(lblValue, value);
             statusPanel.Controls.Add(lblName, 0, row);
             statusPanel.Controls.Add(lblValue, 1, row);
         }
