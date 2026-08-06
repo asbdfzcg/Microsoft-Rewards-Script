@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 
 namespace RewardsManager
@@ -9,6 +10,9 @@ namespace RewardsManager
         [STAThread]
         static void Main(string[] args)
         {
+            // 注册代码页提供器，否则 Encoding.GetEncoding(936/GBK) 会抛 NotSupportedException
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
             AppDomain.CurrentDomain.UnhandledException += (_, e) => LogException("UnhandledException", e.ExceptionObject as Exception);
             Application.ThreadException += (_, e) => LogException("ThreadException", e.Exception);
             ApplicationConfiguration.Initialize();

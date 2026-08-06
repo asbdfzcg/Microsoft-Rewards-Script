@@ -16,8 +16,21 @@ namespace RewardsManager
         /// cmd.exe 的内部消息（如“不是内部或外部命令”）按 OEM 编码输出；
         /// 在中文 Windows 下 OEM=GBK，若按 UTF-8 读取会乱码。
         /// </summary>
-        private static Encoding ConsoleEncoding =>
-            Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
+        private static Encoding ConsoleEncoding
+        {
+            get
+            {
+                try
+                {
+                    return Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
+                }
+                catch
+                {
+                    // 代码页不可用（如精简运行时缺 GBK），退回到 UTF-8，保证不崩溃
+                    return Encoding.UTF8;
+                }
+            }
+        }
 
         /// <summary>同步运行命令，返回 (退出码, 输出)</summary>
         public static (int exitCode, string output) Run(string fileName, string arguments, string workDir = null, int timeoutMs = 30000)
