@@ -29,8 +29,8 @@ namespace RewardsManager
             _standalone = standalone;
             Text = "环境初始化";
             Width = 800;
-            Height = 700;
-            MinimumSize = new Size(760, 620);
+            Height = 620;
+            MinimumSize = new Size(760, 520);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -44,9 +44,10 @@ namespace RewardsManager
                 Margin = Padding.Empty,
                 Padding = new Padding(0)
             };
-            // 状态区、按钮行固定高度，输出区占剩余空间，彻底避免 AutoSize 算错导致裁切
-            const int statusHeight = 130;
-            const int btnHeight = 48;
+            // 状态区、按钮行固定高度，输出区占剩余空间。
+            // 注意：TableLayoutPanel 的 Absolute 行高要包含子控件 Margin。
+            const int statusHeight = 140;  // 5行×24 + 上下Margin各10
+            const int btnHeight = 48;      // 按钮36 + 上下Margin各6
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, statusHeight));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, btnHeight));
@@ -57,7 +58,7 @@ namespace RewardsManager
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 AutoSize = false,
-                Margin = new Padding(10, 10, 10, 6),
+                Margin = new Padding(10, 10, 10, 10),
                 Padding = Padding.Empty
             };
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240f));
@@ -69,8 +70,8 @@ namespace RewardsManager
                 FlowDirection = FlowDirection.LeftToRight,
                 AutoSize = false,
                 WrapContents = false,
-                Height = 48,
-                Margin = new Padding(10, 6, 10, 10)
+                Height = 36,
+                Margin = new Padding(10, 6, 10, 6)
             };
             btnInstallDeps = new Button { Text = "安装依赖并构建", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
             btnInstallNode = new Button { Text = "安装/修复 Node", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
@@ -124,7 +125,7 @@ namespace RewardsManager
         /// </summary>
         private void UpdateOutputHeight(object sender, EventArgs e)
         {
-            int available = root.ClientSize.Height - 130 - 48 - root.Padding.Vertical;
+            int available = root.ClientSize.Height - 140 - 48 - root.Padding.Vertical;
             int target = Math.Max(260, available);
             if (target == _lastOutputHeight) return;
             _lastOutputHeight = target;
@@ -185,7 +186,7 @@ namespace RewardsManager
                 Text = label,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                Margin = new Padding(0, 3, 6, 2)
+                Margin = new Padding(0, 4, 6, 2)
             };
             var lblValue = new Label
             {
@@ -194,7 +195,7 @@ namespace RewardsManager
                 AutoEllipsis = true,
                 ForeColor = ok ? Color.DarkGreen : Color.DarkRed,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                Margin = new Padding(0, 3, 0, 2)
+                Margin = new Padding(0, 4, 0, 2)
             };
             toolTip.SetToolTip(lblValue, value);
             statusPanel.Controls.Add(lblName, 0, row);
