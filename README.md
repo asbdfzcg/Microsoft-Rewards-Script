@@ -1,9 +1,14 @@
+# Microsoft Rewards Script 中文增强版
+
 > [!NOTE]
 > 本仓库是 [TheNetsky/Microsoft-Rewards-Script](https://github.com/TheNetsky/Microsoft-Rewards-Script) 的 fork（维护分支 `v4`，由 [@asbdfzcg](https://github.com/asbdfzcg) 维护）。相比上游，本分支额外增加了 **RewardsManager 图形化管理程序**、**autorun 一键运行工具** 与 **中文本地化**，具体说明见下方列表。
 
 - 🖥️ **RewardsManager 图形化管理程序**（`manager/`）：首次启动自动检测运行环境（Node.js / 依赖 `node_modules` / 构建产物 `dist` / 浏览器内核 / 配置文件），提供一键安装依赖与浏览器、计划任务管理、版本更新检查。
 - ⚡ **autorun 一键运行工具**（`autorun/`）：通过 Windows 计划任务每日自动运行脚本，内含诊断脚本与一键安装脚本，适合不熟悉命令行的 Windows 用户开箱即用。
 - 🌐 **中文本地化**：搜索词与运行时输出信息已中文化，更适合中文用户直接使用。
+
+> [!IMPORTANT]
+> 本项目在开发过程中使用了 AI 辅助编程（代码生成、调试与文档优化）。
 
 脚本核心能力（Bing / Microsoft Rewards 自动任务）与上游保持一致，并已做中文本地化。下方为上游原版 README，配置项、使用方法等请以原文为准。
 
