@@ -25,9 +25,9 @@ namespace RewardsManager
         {
             _standalone = standalone;
             Text = "环境初始化";
-            Width = 800;
-            Height = 780;
-            MinimumSize = new Size(760, 760);
+            Width = 760;
+            Height = 680;
+            MinimumSize = new Size(640, 560);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -78,25 +78,32 @@ namespace RewardsManager
             btnRow.Controls.Add(btnCancel);
             btnRow.Controls.Add(btnEnter);
 
+            // 用 Panel 包裹 RichTextBox：TableLayoutPanel 的 Percent 行在窗口缩小到最小时
+            // 会忽略 RichTextBox 自身的 MinimumSize，但会尊重 Panel 的 MinimumSize。
+            // 因此由 panelOut 承担最小高度约束，RichTextBox 在面板内 Dock=Fill 始终铺满，
+            // 既保证最小窗口下滚动条完整可见，又能随窗口自由缩放。
+            var panelOut = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(10, 0, 10, 0),
+                MinimumSize = new Size(200, 280)
+            };
             txtOut = new RichTextBox
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
                 Font = new Font("Consolas", 9F),
-                Margin = new Padding(10, 0, 10, 0),
+                Margin = Padding.Empty,
                 BackColor = Color.White,
                 WordWrap = false,
-                ScrollBars = RichTextBoxScrollBars.ForcedBoth,
-                MinimumSize = new Size(200, 380)
+                ScrollBars = RichTextBoxScrollBars.ForcedBoth
             };
+            panelOut.Controls.Add(txtOut);
 
             root.Controls.Add(statusPanel, 0, 0);
-            root.Controls.Add(txtOut, 0, 1);
+            root.Controls.Add(panelOut, 0, 1);
             root.Controls.Add(btnRow, 0, 2);
             Controls.Add(root);
-
-            // 让 RichTextBox 随窗口缩放而缩放
-            root.SetColumnSpan(txtOut, 1);
 
             RefreshStatus();
         }
