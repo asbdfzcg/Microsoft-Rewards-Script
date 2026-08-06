@@ -15,16 +15,21 @@ namespace RewardsManager
         private readonly FlowLayoutPanel statusPanel;
         private readonly RichTextBox txtOut;
         private readonly Button btnInstallDeps, btnInstallNode, btnEnter;
+        private readonly bool _standalone;
+        private readonly ToolTip toolTip = new ToolTip();
         private bool _busy;
 
-        public EnvWizardForm()
+        public EnvWizardForm(bool standalone = false)
         {
+            _standalone = standalone;
             Text = "环境初始化";
             Width = 660;
             Height = 540;
+            MinimumSize = new Size(600, 450);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+            FormClosing += (_, e) => { if (_busy) e.Cancel = true; };
 
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = Padding.Empty, Padding = Padding.Empty };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -36,7 +41,7 @@ namespace RewardsManager
             var btnRow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, WrapContents = true, Margin = new Padding(10, 6, 10, 10) };
             btnInstallDeps = new Button { Text = "安装依赖并构建", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
             btnInstallNode = new Button { Text = "安装/修复 Node", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
-            btnEnter = new Button { Text = "进入主界面", AutoSize = true, Padding = new Padding(8, 3, 8, 3) };
+            btnEnter = new Button { Text = standalone ? "进入主界面" : "返回主界面", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Visible = !standalone };
             btnInstallDeps.Click += (_, _) => _ = DoInstallDeps();
             btnInstallNode.Click += (_, _) => _ = DoInstallNode();
             btnEnter.Click += (_, _) => { DialogResult = DialogResult.OK; Close(); };
@@ -78,6 +83,20 @@ namespace RewardsManager
             btnEnter.Enabled = allOk;
             btnInstallNode.Visible = !node.ok;
             btnInstallNode.Enabled = !_busy && !node.ok;
+
+            // Node 没装好时不能点「安装依赖」
+            btnInstallDeps.Enabled = node.ok && !_busy;
+            if (!node.ok)
+                toolTip.SetToolTip(btnInstallDeps, "请先点击「安装/修复 Node」安装 Node.js（需 ≥24）");
+            else
+                toolTip.SetToolTip(btnInstallDeps, "执行 npm install + 下载浏览器 + npm run build");
+
+            // 独立模式（启动前拦截）：全部就绪后自动进入主界面
+            if (_standalone && allOk)
+            {
+                DialogResult = DialogResult.OK;
+                BeginInvoke(new Action(Close));
+            }
         }
 
         private void AddStatus(string label, string value, bool ok)
@@ -91,6 +110,12 @@ namespace RewardsManager
         private async Task DoInstallDeps()
         {
             if (_busy) return;
+            var node = EnvCheck.CheckNode();
+            if (!node.ok)
+            {
+                MessageBox.Show("请先安装 Node.js（需 ≥24）后再安装依赖。", "需要先安装 Node", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             _busy = true; btnInstallDeps.Enabled = false; btnInstallNode.Enabled = false;
             txtOut.Clear();
             try

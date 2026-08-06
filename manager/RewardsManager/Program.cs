@@ -27,7 +27,32 @@ namespace RewardsManager
                 else if (args[i] == "--verify-switch")
                     verifySwitch = true;
             }
+
+            // 自检/验证模式直接进主界面，不弹环境向导
+            if (!verify && !verifySwitch && EnvCheck.NeedsSetup())
+            {
+                EnsureConfig();
+                using var wizard = new EnvWizardForm(standalone: true);
+                if (wizard.ShowDialog() != DialogResult.OK)
+                    return; // 环境未就绪且用户关闭/取消，直接退出
+            }
+
             Application.Run(new MainForm(initialTab, setGap, verify, verifySwitch));
+        }
+
+        /// <summary>若 config.json 不存在，从 config.example.json 复制一份</summary>
+        private static void EnsureConfig()
+        {
+            try
+            {
+                if (!File.Exists(ProjectPaths.ConfigFile))
+                {
+                    var example = Path.Combine(ProjectPaths.Root, "config.example.json");
+                    if (File.Exists(example))
+                        File.Copy(example, ProjectPaths.ConfigFile, false);
+                }
+            }
+            catch { }
         }
 
         private static void LogException(string kind, Exception ex)

@@ -74,22 +74,25 @@ namespace RewardsManager
         public static async Task<int> InstallDepsAsync(Action<string> onOutput)
         {
             onOutput(">>> npm install");
-            int code = await ProcessHelper.RunWithOutputAsync("cmd.exe", "/c npm install", ProjectPaths.Root, onOutput);
+            int code = await ProcessHelper.RunWithOutputAsync("cmd.exe", Utf8Cmd("npm install"), ProjectPaths.Root, onOutput);
             if (code != 0) return code;
             onOutput(">>> npx patchright install chromium");
-            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", "/c npx patchright install chromium", ProjectPaths.Root, onOutput);
+            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", Utf8Cmd("npx patchright install chromium"), ProjectPaths.Root, onOutput);
             if (code != 0) return code;
             onOutput(">>> npm run build");
-            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", "/c npm run build", ProjectPaths.Root, onOutput);
+            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", Utf8Cmd("npm run build"), ProjectPaths.Root, onOutput);
             return code;
         }
+
+        /// <summary>把命令包装成「先切 UTF-8 代码页再执行」，避免中文系统 OEM 编码乱码</summary>
+        private static string Utf8Cmd(string command) => $"/c chcp 65001 >nul && {command}";
 
         /// <summary>尝试用 winget 自动安装 Node.js（current 线，需 ≥24）。失败则提示手动安装。</summary>
         public static async Task<bool> InstallNodeAsync(Action<string> onOutput)
         {
             onOutput(">>> 使用 winget 安装 Node.js (current, 需 ≥24) ...");
             int code = await ProcessHelper.RunWithOutputAsync("cmd.exe",
-                "/c winget install --id OpenJS.NodeJS -e --silent --accept-package-agreements --accept-source-agreements",
+                Utf8Cmd("winget install --id OpenJS.NodeJS -e --silent --accept-package-agreements --accept-source-agreements"),
                 null, onOutput);
             if (code == 0) return true;
             onOutput("winget 安装失败。请手动从 https://nodejs.org 下载安装 Node.js >= 24，安装后重启本程序。");
