@@ -27,9 +27,9 @@ namespace RewardsManager
         {
             _standalone = standalone;
             Text = "环境初始化";
-            Width = 820;
+            Width = 840;
             Height = 640;
-            MinimumSize = new Size(780, 560);
+            MinimumSize = new Size(800, 560);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -44,7 +44,7 @@ namespace RewardsManager
                 Margin = new Padding(10, 12, 10, 8),
                 Padding = Padding.Empty
             };
-            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250f));
+            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             // 按钮行：底部，固定高度
@@ -116,7 +116,7 @@ namespace RewardsManager
             AddStatus("Node.js (需 ≥24):", nodeText, node.ok);
             AddStatus("依赖 node_modules:", hasModules ? "已安装" : "缺失（需安装）", hasModules);
             AddStatus("构建产物 dist:", hasDist ? "已生成" : "缺失（需构建）", hasDist);
-            AddStatus("浏览器内核 (patchright chromium):", hasBrowser ? "已安装" : (hasModules ? "缺失（需下载）" : "依赖依赖安装后检测"), hasBrowser);
+            AddStatus("浏览器内核 (chromium):", hasBrowser ? "已安装" : (hasModules ? "缺失（需下载）" : "依赖安装后检测"), hasBrowser);
             AddStatus("配置文件 config.json:", hasConfig ? "已存在" : "将由模板自动生成", hasConfig);
 
             bool allOk = node.ok && hasModules && hasDist && hasBrowser && hasConfig;
