@@ -13,13 +13,16 @@ namespace RewardsManager
     /// </summary>
     internal class EnvWizardForm : Form
     {
+        private readonly TableLayoutPanel root;
         private readonly TableLayoutPanel statusPanel;
+        private readonly FlowLayoutPanel btnRow;
         private readonly RichTextBox txtOut;
         private readonly Button btnInstallDeps, btnInstallNode, btnEnter, btnCancel;
         private readonly bool _standalone;
         private readonly ToolTip toolTip = new ToolTip();
         private bool _busy;
         private CancellationTokenSource _cts;
+        private int _lastOutputHeight;
 
         public EnvWizardForm(bool standalone = false)
         {
@@ -27,13 +30,13 @@ namespace RewardsManager
             Text = "环境初始化";
             Width = 760;
             Height = 680;
-            MinimumSize = new Size(640, 560);
+            MinimumSize = new Size(640, 520);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             FormClosing += (_, e) => { if (_busy && MessageBox.Show("安装正在进行中，确定要取消并退出吗？", "确认取消", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) e.Cancel = true; };
 
-            var root = new TableLayoutPanel
+            root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
@@ -42,7 +45,7 @@ namespace RewardsManager
                 Padding = new Padding(0)
             };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 320f));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             // 状态区：使用 TableLayoutPanel 每行两列，缩放时自动换行
@@ -57,7 +60,7 @@ namespace RewardsManager
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            var btnRow = new FlowLayoutPanel
+            btnRow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
@@ -78,15 +81,12 @@ namespace RewardsManager
             btnRow.Controls.Add(btnCancel);
             btnRow.Controls.Add(btnEnter);
 
-            // 用 Panel 包裹 RichTextBox：TableLayoutPanel 的 Percent 行在窗口缩小到最小时
-            // 会忽略 RichTextBox 自身的 MinimumSize，但会尊重 Panel 的 MinimumSize。
-            // 因此由 panelOut 承担最小高度约束，RichTextBox 在面板内 Dock=Fill 始终铺满，
-            // 既保证最小窗口下滚动条完整可见，又能随窗口自由缩放。
+            // 输出区外层 Panel，RichTextBox 在其内 Dock=Fill 铺满。
+            // 中间行的高度由 SizeChanged 动态控制（见 UpdateOutputHeight），保证最小 280px。
             var panelOut = new Panel
             {
                 Dock = DockStyle.Fill,
-                Margin = new Padding(10, 0, 10, 0),
-                MinimumSize = new Size(200, 280)
+                Margin = new Padding(10, 0, 10, 0)
             };
             txtOut = new RichTextBox
             {
@@ -105,10 +105,33 @@ namespace RewardsManager
             root.Controls.Add(btnRow, 0, 2);
             Controls.Add(root);
 
+            // 窗口缩放时把剩余空间分配给输出区；不修改 Form.MinimumSize，避免窗口跳动影响按钮行
+            this.SizeChanged += UpdateOutputHeight;
+            this.Shown += (_, _) => UpdateOutputHeight(null, EventArgs.Empty);
+
             RefreshStatus();
         }
 
         private void AppendOut(string s) => txtOut.AppendText(s + Environment.NewLine);
+
+        /// <summary>
+        /// 窗口缩放时把 TableLayoutPanel 的剩余空间全部分配给中间输出行，最小 280px。
+        /// 仅修改中间行的绝对高度，不触碰状态行/按钮行，也不改 Form.MinimumSize，按钮位置保持稳定。
+        /// </summary>
+        private void UpdateOutputHeight(object sender, EventArgs e)
+        {
+            int hStatus = statusPanel.Height;
+            int hBtn = btnRow.Height;
+            if (hStatus == 0 || hBtn == 0) return; // 尚未布局完成，等 Shown/Resize 再算
+
+            int available = root.ClientSize.Height - hStatus - hBtn - root.Padding.Vertical;
+            int target = Math.Max(280, available);
+            if (target == _lastOutputHeight) return;
+            _lastOutputHeight = target;
+
+            root.RowStyles[1].SizeType = SizeType.Absolute;
+            root.RowStyles[1].Height = target;
+        }
 
         private void RefreshStatus()
         {
@@ -167,7 +190,8 @@ namespace RewardsManager
             var lblValue = new Label
             {
                 Text = value,
-                AutoSize = true,
+                AutoSize = false,
+                AutoEllipsis = true,
                 ForeColor = ok ? Color.DarkGreen : Color.DarkRed,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
                 Margin = new Padding(0, 4, 0, 2)
