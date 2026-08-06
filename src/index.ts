@@ -16,6 +16,7 @@ import Utils, { isBrowserClosedError } from './util/Utils'
 import { loadAccounts, loadConfig } from './util/Load'
 import { closeSessionStore, loadResolvedRegion, saveResolvedRegion } from './util/SessionStore'
 import { checkNodeVersion } from './util/Validator'
+import { checkForUpdates } from './util/UpdateChecker'
 import { normalizeCountry, resolveAccountLocale } from './util/Locale'
 import type { AccountLocale } from './util/Locale'
 
@@ -851,6 +852,10 @@ export { executionContext }
 
 async function main(): Promise<void> {
     checkNodeVersion()
+    if (cluster.isPrimary) {
+        // 静默检查 GitHub 新版本，结果写入 autorun/update-status.json（不影响主流程）
+        void checkForUpdates()
+    }
     const rewardsBot = new MicrosoftRewardsBot()
 
     process.on('beforeExit', () => {

@@ -6,6 +6,7 @@ import { sendTelegram } from './Telegram'
 import type { MicrosoftRewardsBot } from '../index'
 import { errorDiagnostic } from '../util/ErrorDiagnostic'
 import type { LogFilter } from '../interface/Config'
+import { translateBody, translateLevel, translatePlatform, translateTitle } from './i18n'
 
 export type Platform = boolean | 'main'
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug'
@@ -22,7 +23,11 @@ function platformText(platform: Platform): string {
 }
 
 function platformBadge(platform: Platform): string {
-    return platform === 'main' ? chalk.bgCyan('MAIN') : platform ? chalk.bgBlue('MOBILE') : chalk.bgMagenta('DESKTOP')
+    return platform === 'main'
+        ? chalk.bgCyan(translatePlatform('MAIN'))
+        : platform
+          ? chalk.bgBlue(translatePlatform('MOBILE'))
+          : chalk.bgMagenta(translatePlatform('DESKTOP'))
 }
 
 function getColorFn(color?: ColorKey): ChalkFn | null {
@@ -79,6 +84,14 @@ export class Logger {
         const levelTag = level.toUpperCase()
         const cleanMsg = `[${now}] [${userName}] [${levelTag}] ${platformText(isMobile)} [${title}] ${formatted}`
 
+        // 中文翻译版本（仅用于输出展示；过滤匹配仍使用上面的英文原文，
+        // 因此 consoleLogFilter / webhookLogFilter 的 keywords 需配置英文）
+        const zhLevelTag = translateLevel(levelTag)
+        const zhPlatform = translatePlatform(platformText(isMobile))
+        const zhTitle = translateTitle(title)
+        const zhFormatted = translateBody(formatted)
+        const zhCleanMsg = `[${now}] [${userName}] [${zhLevelTag}] ${zhPlatform} [${zhTitle}] ${zhFormatted}`
+
         const config = this.bot.config
 
         if (level === 'debug' && !config.debugLogs && !process.argv.includes('-dev')) {
@@ -86,7 +99,7 @@ export class Logger {
         }
 
         const badge = platformBadge(isMobile)
-        const consoleStr = `[${now}] [${userName}] [${levelTag}] ${badge} [${title}] ${formatted}`
+        const consoleStr = `[${now}] [${userName}] [${zhLevelTag}] ${badge} [${zhTitle}] ${zhFormatted}`
 
         let logColor: ColorKey | undefined = color
 
@@ -126,12 +139,12 @@ export class Logger {
         if (cluster.isPrimary) {
             if (config.webhook.discord?.enabled && config.webhook.discord.url) {
                 if (level === 'debug') return
-                sendDiscord(config.webhook.discord.url, cleanMsg, level)
+                sendDiscord(config.webhook.discord.url, zhCleanMsg, level)
             }
 
             if (config.webhook.ntfy?.enabled && config.webhook.ntfy.url) {
                 if (level === 'debug') return
-                sendNtfy(config.webhook.ntfy, cleanMsg, level)
+                sendNtfy(config.webhook.ntfy, zhCleanMsg, level)
             }
 
             if (
@@ -140,10 +153,10 @@ export class Logger {
                 config.webhook.telegram.chatId
             ) {
                 if (level === 'debug') return
-                sendTelegram(config.webhook.telegram, cleanMsg, level)
+                sendTelegram(config.webhook.telegram, zhCleanMsg, level)
             }
         } else {
-            process.send?.({ __ipcLog: { content: cleanMsg, level } })
+            process.send?.({ __ipcLog: { content: zhCleanMsg, level } })
         }
     }
 

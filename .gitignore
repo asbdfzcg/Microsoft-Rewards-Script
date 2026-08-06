@@ -10,3 +10,16 @@ note
 .playwright-chromium-installed
 .stfolder/
 .env
+
+# --- local tooling / build artifacts (added during RewardsManager dev) ---
+.vs/
+**/bin/
+**/obj/
+icon-preview.png
+geometry.txt
+
+# autorun runtime state (not source)
+/autorun/logs/
+/autorun/.last-run-date
+/autorun/update-status.json
+/autorun/*.pdb
