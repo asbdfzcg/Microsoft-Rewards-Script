@@ -3,9 +3,10 @@
     生成 Microsoft Rewards Script 便携发布包（极简运行时整包）。
 
 .DESCRIPTION
-    只收集"运行时必需"的文件，剔除所有源码/开发配置/运行时产物，
-    压成一个 zip，用户下载解压后双击 autorun/RewardsManager.exe 即可，
-    缺失的依赖（Node / node_modules / dist / 浏览器）由向导自动下载安装。
+    只收集"运行时必需"的文件，剔除源码/开发配置，
+    压成一个 zip，用户下载解压后双击 autorun/RewardsManager.exe 即可。
+    包内已带编译产物 dist/，故用户端无需 TypeScript 源码与 tsc 构建；
+    缺失的运行依赖（Node / node_modules / 浏览器）由向导自动下载安装。
 
     用法：
         pwsh scripts/package-release.ps1
@@ -19,9 +20,9 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = Resolve-Path "$PSScriptRoot/.."
 $Staging  = Join-Path $env:TEMP "mrs-release-staging"
-$Log      = Join-Path $PSScriptRoot "../release/build-summary.txt"
-"=== build $(Get-Date) ===" | Out-File $Log -Encoding ascii
-function Log($m) { $m | Out-File $Log -Append -Encoding ascii; Write-Host $m }
+$Log      = Join-Path $env:TEMP "mrs-build-summary.txt"
+"=== build $(Get-Date) ===" | Out-File $Log -Encoding utf8
+function Log($m) { $m | Out-File $Log -Append -Encoding utf8; Write-Host $m }
 
 # 读版本号
 $pkg     = Get-Content (Join-Path $RepoRoot "package.json") -Raw | ConvertFrom-Json
@@ -34,6 +35,7 @@ $files = @(
     "package-lock.json",
     "config.example.json",
     "env.example",
+    "dist/",
     "autorun/RewardsManager.exe",
     "autorun/run-rewards.ps1",
     "autorun/setup-task.ps1",
@@ -74,8 +76,8 @@ try {
     Log "python zip result: $pyOut"
     Log "已生成发布包: $zip"
     Log "版本: v$version   大小: $([math]::Round((Get-Item $zip).Length / 1MB, 2)) MB"
-    Log "内容: package.json, config.example.json, env.example, autorun/(RewardsManager.exe + 脚本)"
-    Log "用户解压后: 双击 autorun/RewardsManager.exe -> 向导自动装 Node/依赖/浏览器/构建"
+    Log "内容: package.json, config.example.json, env.example, dist/(编译产物), autorun/(RewardsManager.exe + 脚本)"
+    Log "用户解压后: 双击 autorun/RewardsManager.exe -> 向导自动装 Node/依赖/浏览器"
 } catch {
     Log "ZIP ERROR: $($_.Exception.GetType().Name): $($_.Exception.Message)"
     exit 1
