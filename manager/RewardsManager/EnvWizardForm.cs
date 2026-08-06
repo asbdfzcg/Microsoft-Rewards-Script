@@ -54,7 +54,7 @@ namespace RewardsManager
                 Margin = new Padding(10, 12, 10, 6),
                 Padding = Padding.Empty
             };
-            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180f));
+            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             var btnRow = new FlowLayoutPanel
