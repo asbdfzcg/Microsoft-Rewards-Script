@@ -79,18 +79,39 @@ if (Test-Path $localNode) {
     }
 }
 
-# 再检查系统 Node
-$sysNode = 'D:\Program Files\nodejs\node.exe'
-if (Test-Path $sysNode) {
+# 再检查 PATH / 常见安装路径里的 Node
+$candidates = [System.Collections.Generic.List[string]]::new()
+try {
+    $cmd = Get-Command node.exe -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source) { $candidates.Add($cmd.Source) }
+} catch { }
+foreach ($p in @(
+    (Join-Path $env:ProgramFiles 'nodejs\node.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Programs\nodejs\node.exe'),
+    'C:\Program Files\nodejs\node.exe',
+    'D:\Program Files\nodejs\node.exe'
+)) {
+    if ($p -and -not $candidates.Contains($p)) { $candidates.Add($p) }
+}
+
+foreach ($p in $candidates) {
+    if (-not (Test-Path $p)) { continue }
     try {
-        $v = & $sysNode --version
-        if ($v -match 'v(\d+)' -and [int]$Matches[1] -ge 24) { Ok "系统 Node.js: $v (>= 24 满足要求)" }
-        else { Bad "系统 Node.js 版本过低: $v（需要 >= 24）" }
+        $v = & $p --version
+        if ($v -match 'v(\d+)' -and [int]$Matches[1] -ge 24) {
+            Ok "系统 Node.js: $v (>= 24 满足要求) 路径: $p"
+            $nodeFound = $true
+            break
+        } else {
+            Bad "系统 Node.js 版本过低: $v（需要 >= 24）路径: $p"
+        }
     } catch {
-        Bad "系统 Node.js 无法执行: $sysNode"
+        Bad "系统 Node.js 无法执行: $p"
     }
-} elseif (-not $nodeFound) {
-    Bad "未找到 Node.js（项目内或系统均未发现）"
+}
+
+if (-not $nodeFound) {
+    Bad "未找到 Node.js（项目内 tools/node 与系统 PATH/常见路径均未发现）"
 }
 
 Section "6. 项目文件"
