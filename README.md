@@ -2,9 +2,10 @@
 > **本仓库是 [TheNetsky/Microsoft-Rewards-Script](https://github.com/TheNetsky/Microsoft-Rewards-Script) 的 fork（维护分支 `v4`，由 [@asbdfzcg](https://github.com/asbdfzcg) 维护）。**
 >
 > 相比上游，本分支额外增加了：
-> - 🖥️ **RewardsManager 图形化管理程序**（`manager/`）：首次启动自动检测运行环境（Node.js / 依赖 `node_modules` / 构建产物 `dist` / 浏览器内核 / 配置文件），提供一键安装依赖与浏览器、计划任务管理、版本更新检查。
-> - ⚡ **autorun 一键运行工具**（`autorun/`）：通过 Windows 计划任务每日自动运行脚本，内含诊断脚本与一键安装脚本，适合不熟悉命令行的 Windows 用户开箱即用。
-> - 🌐 **中文本地化**：搜索词与运行时输出信息已中文化，更适合中文用户直接使用。
+>
+> -  **RewardsManager 图形化管理程序**（`manager/`）：首次启动自动检测运行环境（Node.js / 依赖 `node_modules` / 构建产物 `dist` / 浏览器内核 / 配置文件），提供一键安装依赖与浏览器、计划任务管理、版本更新检查。
+> -  **autorun 一键运行工具**（`autorun/`）：通过 Windows 计划任务每日自动运行脚本，内含诊断脚本与一键安装脚本，适合不熟悉命令行的 Windows 用户开箱即用。
+> -  **中文本地化**：搜索词与运行时输出信息已中文化，更适合中文用户直接使用。
 >
 > 脚本核心能力（Bing / Microsoft Rewards 自动任务）与上游保持一致，并已做中文本地化。下方为上游原版 README，配置项、使用方法等请以原文为准。
 
@@ -26,26 +27,26 @@
 
 - [Table of Contents](#table-of-contents)
 - [Quick Setup](#quick-setup)
-    - [Bare metal](#bare-metal)
-        - [Get the script](#get-the-script)
+  - [Bare metal](#bare-metal)
+    - [Get the script](#get-the-script)
 - [Account Setup](#account-setup)
 - [Config Setup](#config-setup)
-    - [Build and run the script (bare metal version)](#build-and-run-the-script-bare-metal-version)
+  - [Build and run the script (bare metal version)](#build-and-run-the-script-bare-metal-version)
 - [Docker](#docker)
 - [Control API and Dashboard](#control-api-and-dashboard)
 - [Nix Setup](#nix-setup)
 - [Configuration Options](#configuration-options)
-    - [Core](#core)
-    - [Workers](#workers)
-    - [Activities](#activities)
-    - [Search Settings](#search-settings)
-        - [Query sources](#query-sources)
-    - [Experimental](#experimental)
-    - [Logging](#logging)
-    - [Proxy](#proxy)
-    - [Webhooks](#webhooks)
+  - [Core](#core)
+  - [Workers](#workers)
+  - [Activities](#activities)
+  - [Search Settings](#search-settings)
+    - [Query sources](#query-sources)
+  - [Experimental](#experimental)
+  - [Logging](#logging)
+  - [Proxy](#proxy)
+  - [Webhooks](#webhooks)
 - [Troubleshooting](#troubleshooting)
-    - [Session management](#session-management)
+  - [Session management](#session-management)
 - [Disclaimer](#disclaimer)
 
 ---
