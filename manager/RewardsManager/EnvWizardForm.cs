@@ -32,6 +32,7 @@ namespace RewardsManager
             MinimumSize = new Size(800, 560);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
+            Padding = new Padding(10);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             FormClosing += (_, e) => { if (_busy && MessageBox.Show("安装正在进行中，确定要取消并退出吗？", "确认取消", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) e.Cancel = true; };
 
@@ -41,10 +42,10 @@ namespace RewardsManager
                 Dock = DockStyle.Top,
                 ColumnCount = 2,
                 AutoSize = true,
-                Margin = new Padding(10, 12, 10, 8),
-                Padding = Padding.Empty
+                Margin = Padding.Empty,
+                Padding = new Padding(0, 0, 0, 8)
             };
-            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
+            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320f));
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             // 按钮行：底部，固定高度
@@ -52,10 +53,10 @@ namespace RewardsManager
             {
                 Dock = DockStyle.Bottom,
                 FlowDirection = FlowDirection.LeftToRight,
-                AutoSize = false,
+                AutoSize = true,
                 WrapContents = false,
-                Height = 44,
-                Margin = new Padding(10, 8, 10, 10)
+                Padding = new Padding(0, 8, 0, 6),
+                Margin = Padding.Empty
             };
             btnInstallDeps = new Button { Text = "安装依赖并构建", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
             btnInstallNode = new Button { Text = "安装/修复 Node", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
@@ -74,7 +75,8 @@ namespace RewardsManager
             panelOut = new Panel
             {
                 Dock = DockStyle.Fill,
-                Margin = new Padding(10, 0, 10, 0)
+                Padding = new Padding(0, 6, 0, 6),
+                Margin = Padding.Empty
             };
             txtOut = new RichTextBox
             {
@@ -149,7 +151,7 @@ namespace RewardsManager
                 Text = label,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                Margin = new Padding(0, 2, 6, 2)
+                Margin = new Padding(0, 4, 10, 4)
             };
             var lblValue = new Label
             {
@@ -158,7 +160,7 @@ namespace RewardsManager
                 AutoEllipsis = true,
                 ForeColor = ok ? Color.DarkGreen : Color.DarkRed,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                Margin = new Padding(0, 2, 0, 2)
+                Margin = new Padding(0, 4, 0, 4)
             };
             toolTip.SetToolTip(lblValue, value);
             statusPanel.Controls.Add(lblName, 0, row);
