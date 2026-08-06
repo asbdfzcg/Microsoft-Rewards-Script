@@ -1,7 +1,7 @@
 {
     "name": "microsoft-rewards-script",
     "version": "4.2.0",
-    "description": "Fork of TheNetsky/Microsoft-Rewards-Script — 增加中文图形化管理程序(RewardsManager)与一键运行(autorun)。Automatically do tasks for Microsoft Rewards but in TS!",
+    "description": "Fork of TheNetsky/Microsoft-Rewards-Script — Add Chinese graphical interface RewardsManager and autorun. Automatically do tasks for Microsoft Rewards but in TS!",
     "author": "Netsky",
     "license": "GPL-3.0-or-later",
     "engines": {

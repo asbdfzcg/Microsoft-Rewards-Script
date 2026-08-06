@@ -11,7 +11,7 @@ import path from 'node:path'
 import https from 'node:https'
 import pkg from '../../package.json'
 
-const REPO = 'TheNetsky/Microsoft-Rewards-Script'
+const REPO = 'asbdfzcg/Microsoft-Rewards-Script'
 const CHECK_TIMEOUT_MS = 8000
 
 export interface UpdateStatus {
