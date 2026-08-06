@@ -28,9 +28,9 @@ namespace RewardsManager
         {
             _standalone = standalone;
             Text = "环境初始化";
-            Width = 760;
-            Height = 680;
-            MinimumSize = new Size(640, 600);
+            Width = 800;
+            Height = 720;
+            MinimumSize = new Size(760, 680);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -57,7 +57,7 @@ namespace RewardsManager
                 Margin = new Padding(10, 12, 10, 6),
                 Padding = Padding.Empty
             };
-            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
+            statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             btnRow = new FlowLayoutPanel
@@ -65,7 +65,7 @@ namespace RewardsManager
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 AutoSize = true,
-                WrapContents = true,
+                WrapContents = false,
                 Margin = new Padding(10, 6, 10, 12)
             };
             btnInstallDeps = new Button { Text = "安装依赖并构建", AutoSize = true, Padding = new Padding(8, 3, 8, 3), Margin = new Padding(0, 0, 10, 0) };
@@ -183,8 +183,9 @@ namespace RewardsManager
             var lblName = new Label
             {
                 Text = label,
-                AutoSize = true,
-                Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
                 Margin = new Padding(0, 2, 6, 2)
             };
             var lblValue = new Label
@@ -193,7 +194,8 @@ namespace RewardsManager
                 AutoSize = false,
                 AutoEllipsis = true,
                 ForeColor = ok ? Color.DarkGreen : Color.DarkRed,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
                 Margin = new Padding(0, 2, 0, 2)
             };
             toolTip.SetToolTip(lblValue, value);
