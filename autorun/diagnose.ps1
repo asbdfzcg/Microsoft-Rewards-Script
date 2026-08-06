@@ -14,7 +14,15 @@ $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 if ($task) {
     Ok "任务存在，状态: $($task.State)"
     $info = $task | Get-ScheduledTaskInfo
-    Write-Host "  上次运行: $($info.LastRunTime)  退出码: $($info.LastTaskResult)"
+    $exitMsg = switch ($info.LastTaskResult) {
+        0       { '0（成功）' }
+        267011  { '267011 = 0x41303（任务尚未运行，正常）' }
+        267012  { '267012 = 0x41304（任务未调度）' }
+        267010  { '267010 = 0x41302（任务已禁用）' }
+        267009  { '267009 = 0x41301（任务正在运行）' }
+        default { "$($info.LastTaskResult)" }
+    }
+    Write-Host "  上次运行: $($info.LastRunTime)  退出码: $exitMsg"
     Write-Host "  下次运行: $($info.NextRunTime)"
     $action = $task.Actions[0]
     Write-Host "  执行程序: $($action.Execute)"
@@ -53,12 +61,37 @@ try {
 } catch { Bad "HTTP 访问失败: $($_.Exception.Message)" }
 
 Section "5. Node.js 环境"
+$nodeFound = $false
+
+# 优先检查项目内便携 Node（沙盒/便携环境使用）
+$localNode = Join-Path $ProjectDir 'tools\node\node.exe'
+if (Test-Path $localNode) {
+    try {
+        $v = & $localNode --version
+        if ($v -match 'v(\d+)' -and [int]$Matches[1] -ge 24) {
+            Ok "项目内 Node.js: $v (>= 24 满足要求) 路径: $localNode"
+            $nodeFound = $true
+        } else {
+            Bad "项目内 Node.js 版本过低: $v（需要 >= 24）路径: $localNode"
+        }
+    } catch {
+        Bad "项目内 Node.js 无法执行: $localNode"
+    }
+}
+
+# 再检查系统 Node
 $sysNode = 'D:\Program Files\nodejs\node.exe'
 if (Test-Path $sysNode) {
-    $v = & $sysNode --version
-    if ($v -match 'v(\d+)' -and [int]$Matches[1] -ge 24) { Ok "系统 Node.js: $v (>= 24 满足要求)" }
-    else { Bad "系统 Node.js 版本过低: $v（需要 >= 24）" }
-} else { Bad "未找到系统 Node.js: $sysNode" }
+    try {
+        $v = & $sysNode --version
+        if ($v -match 'v(\d+)' -and [int]$Matches[1] -ge 24) { Ok "系统 Node.js: $v (>= 24 满足要求)" }
+        else { Bad "系统 Node.js 版本过低: $v（需要 >= 24）" }
+    } catch {
+        Bad "系统 Node.js 无法执行: $sysNode"
+    }
+} elseif (-not $nodeFound) {
+    Bad "未找到 Node.js（项目内或系统均未发现）"
+}
 
 Section "6. 项目文件"
 foreach ($f in @('config.json', '.env', 'dist\index.js', 'package.json')) {
