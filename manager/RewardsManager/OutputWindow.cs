@@ -14,7 +14,8 @@ namespace RewardsManager
         {
             Text = title;
             Width = 800;
-            Height = 500;
+            Height = 520;
+            MinimumSize = new Size(640, 400);
             StartPosition = FormStartPosition.CenterParent;
             txtOutput = new RichTextBox
             {
@@ -23,7 +24,8 @@ namespace RewardsManager
                 Font = new Font("Consolas", 9F),
                 BackColor = Color.FromArgb(30, 30, 30),
                 ForeColor = Color.LightGray,
-                WordWrap = false
+                WordWrap = false,
+                ScrollBars = RichTextBoxScrollBars.ForcedBoth
             };
             Controls.Add(txtOutput);
         }

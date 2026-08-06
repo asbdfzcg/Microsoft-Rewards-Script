@@ -25,9 +25,9 @@ namespace RewardsManager
         {
             _standalone = standalone;
             Text = "环境初始化";
-            Width = 760;
-            Height = 720;
-            MinimumSize = new Size(720, 680);
+            Width = 800;
+            Height = 780;
+            MinimumSize = new Size(760, 760);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -87,7 +87,7 @@ namespace RewardsManager
                 BackColor = Color.White,
                 WordWrap = false,
                 ScrollBars = RichTextBoxScrollBars.ForcedBoth,
-                MinimumSize = new Size(200, 260)
+                MinimumSize = new Size(200, 380)
             };
 
             root.Controls.Add(statusPanel, 0, 0);
