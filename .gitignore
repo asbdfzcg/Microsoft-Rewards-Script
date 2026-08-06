@@ -1,5 +1,6 @@
 sessions/
 dist/
+dist.bak/
 .dev/
 node_modules/
 /config.json

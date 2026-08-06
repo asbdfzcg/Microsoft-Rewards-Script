@@ -18,7 +18,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$RepoRoot = Resolve-Path "$PSScriptRoot/.."
+$RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 $Staging  = Join-Path $env:TEMP "mrs-release-staging"
 $Log      = Join-Path $env:TEMP "mrs-build-summary.txt"
 "=== build $(Get-Date) ===" | Out-File $Log -Encoding utf8
@@ -49,13 +49,48 @@ if ($IncludeDocs) { $files += @("README.md", "LICENSE") }
 if (Test-Path $Staging) { Remove-Item $Staging -Recurse -Force }
 New-Item $Staging -ItemType Directory | Out-Null
 
+# 运行时不需要的文件类型（TypeScript 声明与 source map），从发布包剔除
+$ExcludeRe = '\.(d\.ts|js\.map)$'
+
 function Copy-Rel($rel) {
     $src = Join-Path $RepoRoot $rel
     if (-not (Test-Path $src)) { Log "WARN skip missing: $rel"; return }
     $dst = Join-Path $Staging $rel
     New-Item (Split-Path $dst) -ItemType Directory -Force | Out-Null
-    Copy-Item $src $dst -Recurse -Force
+    if (Test-Path -PathType Container $src) {
+        # 目录：递归拷贝，跳过被排除的文件（.d.ts / .js.map）
+        Get-ChildItem $src -Recurse | Where-Object {
+            -not $_.PSIsContainer -and $_.FullName -notmatch $ExcludeRe
+        } | ForEach-Object {
+            $rel2 = $_.FullName.Substring($RepoRoot.Length).TrimStart('\', '/')
+            $target = Join-Path $Staging $rel2
+            New-Item (Split-Path $target) -ItemType Directory -Force | Out-Null
+            Copy-Item $_.FullName $target -Force
+        }
+    } else {
+        Copy-Item $src $dst -Force
+    }
     Log "+ $rel"
+}
+
+# ---- 确保 dist/ 编译产物存在（缺失则自动构建，杜绝产出无 dist 的坏包）----
+$distEntry = Join-Path $RepoRoot "dist/index.js"
+if (-not (Test-Path $distEntry)) {
+    Log "dist/index.js 缺失，尝试自动构建 (npm run build) ..."
+    $npm = Get-Command npm -ErrorAction SilentlyContinue
+    if (-not $npm) { throw "未找到 npm，无法自动构建。请在开发机先执行 npm run build 再打包。" }
+    Push-Location $RepoRoot
+    try {
+        $buildOut = & npm run build 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $buildOut | ForEach-Object { Log ("  build> " + $_) }
+            throw "npm run build 失败，退出码 $LASTEXITCODE"
+        }
+    } catch {
+        throw "自动构建失败: $_"
+    } finally { Pop-Location }
+    if (-not (Test-Path $distEntry)) { throw "自动构建后仍缺少 dist/index.js，请检查构建配置。" }
+    Log "自动构建完成，dist/ 已就绪"
 }
 
 Log "暂存文件 -> $Staging"
@@ -76,7 +111,7 @@ try {
     Log "python zip result: $pyOut"
     Log "已生成发布包: $zip"
     Log "版本: v$version   大小: $([math]::Round((Get-Item $zip).Length / 1MB, 2)) MB"
-    Log "内容: package.json, config.example.json, env.example, dist/(编译产物), autorun/(RewardsManager.exe + 脚本)"
+    Log "内容: package.json, config.example.json, env.example, dist/(编译产物, 已剔除 .d.ts/.js.map), autorun/(RewardsManager.exe + 脚本)"
     Log "用户解压后: 双击 autorun/RewardsManager.exe -> 向导自动装 Node/依赖/浏览器"
 } catch {
     Log "ZIP ERROR: $($_.Exception.GetType().Name): $($_.Exception.Message)"
