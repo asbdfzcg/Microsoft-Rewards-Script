@@ -1,6 +1,10 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -11,23 +15,46 @@ namespace RewardsManager
     /// </summary>
     internal static class EnvCheck
     {
+        /// <summary>项目内便携 Node 目录（无需安装、无需管理员）</summary>
+        public static string ProjectNodeDir => Path.Combine(ProjectPaths.Root, "tools", "node");
+
+        /// <summary>项目内 node.exe 路径</summary>
+        public static string ProjectNodeExe => Path.Combine(ProjectNodeDir, "node.exe");
+
         /// <summary>检测 Node.js（需 ≥24）。返回 (是否满足版本, 版本字符串, 可执行路径)</summary>
         public static (bool ok, string version, string path) CheckNode()
         {
-            var r = ProcessHelper.Run("node.exe", "--version");
-            if (r.exitCode != 0 || string.IsNullOrWhiteSpace(r.output))
-                return (false, "", "");
-            string raw = r.output.Trim();
-            string v = raw.TrimStart('v');
-            if (!Version.TryParse(v, out var ver))
-                return (false, raw, "");
-            bool ok = ver.Major >= 24;
-            return (ok, raw, FindNodePath());
+            // 优先使用项目内便携 Node
+            if (File.Exists(ProjectNodeExe))
+            {
+                var r = ProcessHelper.Run(ProjectNodeExe, "--version");
+                if (r.exitCode == 0 && TryParseVersion(r.output, out var v, out var raw) && v.Major >= 24)
+                    return (true, raw, ProjectNodeExe);
+            }
+
+            // 其次使用系统 PATH 里的 Node
+            var sys = ProcessHelper.Run("node.exe", "--version");
+            string sysRaw = null;
+            if (sys.exitCode == 0 && TryParseVersion(sys.output, out var sv, out sysRaw) && sv.Major >= 24)
+                return (true, sysRaw, FindNodePath());
+
+            return (false, sysRaw ?? "", "");
         }
 
-        /// <summary>从 PATH 定位 node.exe 路径（供脚本使用）</summary>
+        private static bool TryParseVersion(string output, out Version version, out string raw)
+        {
+            version = null;
+            raw = (output ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            string v = raw.TrimStart('v');
+            return Version.TryParse(v, out version);
+        }
+
+        /// <summary>从 PATH 或项目内定位 node.exe 路径（供脚本使用）</summary>
         public static string FindNodePath()
         {
+            if (File.Exists(ProjectNodeExe)) return ProjectNodeExe;
+
             var r = ProcessHelper.Run("where.exe", "node.exe");
             if (r.exitCode == 0 && !string.IsNullOrWhiteSpace(r.output))
             {
@@ -49,7 +76,8 @@ namespace RewardsManager
         /// <summary>检测 patchright 的 Chromium 是否已下载（依赖 node_modules 已安装）</summary>
         public static bool HasBrowser()
         {
-            var r = ProcessHelper.Run("node.exe",
+            var node = FindNodePath();
+            var r = ProcessHelper.Run(node,
                 "-e \"try{const{chromium}=require('patchright');process.stdout.write(chromium.executablePath())}catch(e){process.stdout.write('')}\"",
                 ProjectPaths.Root, 15000);
             if (r.exitCode != 0 || string.IsNullOrWhiteSpace(r.output)) return false;
@@ -73,30 +101,146 @@ namespace RewardsManager
         /// <summary>安装依赖 + 下载浏览器内核 + 构建，实时回传输出</summary>
         public static async Task<int> InstallDepsAsync(Action<string> onOutput)
         {
+            var node = FindNodePath();
+            var npm = Path.Combine(Path.GetDirectoryName(node), "npm.cmd");
+            if (!File.Exists(npm)) npm = "npm.cmd";
+
             onOutput(">>> npm install");
-            int code = await ProcessHelper.RunWithOutputAsync("cmd.exe", Utf8Cmd("npm install"), ProjectPaths.Root, onOutput);
+            int code = await ProcessHelper.RunWithOutputAsync("cmd.exe", $"/c \"{npm}\" install", ProjectPaths.Root, onOutput);
             if (code != 0) return code;
+
             onOutput(">>> npx patchright install chromium");
-            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", Utf8Cmd("npx patchright install chromium"), ProjectPaths.Root, onOutput);
+            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", $"/c \"{npm}\" exec patchright install chromium", ProjectPaths.Root, onOutput);
             if (code != 0) return code;
+
             onOutput(">>> npm run build");
-            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", Utf8Cmd("npm run build"), ProjectPaths.Root, onOutput);
+            code = await ProcessHelper.RunWithOutputAsync("cmd.exe", $"/c \"{npm}\" run build", ProjectPaths.Root, onOutput);
             return code;
         }
 
-        /// <summary>把命令包装成「先切 UTF-8 代码页再执行」，避免中文系统 OEM 编码乱码</summary>
-        private static string Utf8Cmd(string command) => $"/c chcp 65001 >nul && {command}";
-
-        /// <summary>尝试用 winget 自动安装 Node.js（current 线，需 ≥24）。失败则提示手动安装。</summary>
+        /// <summary>
+        /// 尝试自动安装 Node.js（≥24）。优先 winget；沙盒/无 winget 环境则下载便携 zip 解压到 tools/node。
+        /// </summary>
         public static async Task<bool> InstallNodeAsync(Action<string> onOutput)
         {
-            onOutput(">>> 使用 winget 安装 Node.js (current, 需 ≥24) ...");
-            int code = await ProcessHelper.RunWithOutputAsync("cmd.exe",
-                Utf8Cmd("winget install --id OpenJS.NodeJS -e --silent --accept-package-agreements --accept-source-agreements"),
-                null, onOutput);
-            if (code == 0) return true;
-            onOutput("winget 安装失败。请手动从 https://nodejs.org 下载安装 Node.js >= 24，安装后重启本程序。");
-            return false;
+            // 1. 尝试 winget（若可用）
+            if (await HasWingetAsync())
+            {
+                onOutput(">>> 使用 winget 安装 Node.js (current, 需 ≥24) ...");
+                int code = await ProcessHelper.RunWithOutputAsync("cmd.exe",
+                    "/c winget install --id OpenJS.NodeJS -e --silent --accept-package-agreements --accept-source-agreements",
+                    null, onOutput);
+                if (code == 0) return true;
+                onOutput("winget 安装失败，尝试下载便携版 Node.js ...");
+            }
+            else
+            {
+                onOutput(">>> 未检测到 winget，将下载便携版 Node.js（无需管理员）...");
+            }
+
+            // 2. 下载便携 zip 到 tools/node
+            return await InstallPortableNodeAsync(onOutput);
+        }
+
+        private static async Task<bool> HasWingetAsync()
+        {
+            var r = await Task.Run(() => ProcessHelper.Run("cmd.exe", "/c winget --version", null, 10000));
+            return r.exitCode == 0 && !string.IsNullOrWhiteSpace(r.output);
+        }
+
+        private static async Task<bool> InstallPortableNodeAsync(Action<string> onOutput)
+        {
+            try
+            {
+                string zipUrl = await GetLatestNodeZipUrlAsync();
+                if (string.IsNullOrEmpty(zipUrl))
+                {
+                    onOutput("无法从 nodejs.org 获取最新 Node.js v24 下载地址。请手动安装。");
+                    return false;
+                }
+
+                onOutput($">>> 下载 {zipUrl}");
+                string tempZip = Path.Combine(Path.GetTempPath(), $"node-portable-{Guid.NewGuid()}.zip");
+                Directory.CreateDirectory(ProjectNodeDir);
+
+                using (var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) })
+                using (var fs = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    var response = await client.GetAsync(zipUrl, HttpCompletionOption.ResponseHeadersRead);
+                    response.EnsureSuccessStatusCode();
+                    long total = response.Content.Headers.ContentLength ?? -1;
+                    var stream = await response.Content.ReadAsStreamAsync();
+                    var buffer = new byte[8192];
+                    long read = 0;
+                    int n;
+                    while ((n = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        await fs.WriteAsync(buffer, 0, n);
+                        read += n;
+                        if (total > 0 && read % (256 * 1024) < buffer.Length)
+                            onOutput($"    已下载 {read / 1024 / 1024} / {total / 1024 / 1024} MB");
+                    }
+                }
+
+                onOutput($">>> 解压到 {ProjectNodeDir}");
+                string extractTemp = Path.Combine(Path.GetTempPath(), $"node-extract-{Guid.NewGuid()}");
+                ZipFile.ExtractToDirectory(tempZip, extractTemp);
+
+                // zip 内根目录是 node-vXX.X.X-win-x64，需要把它里面的内容移到 ProjectNodeDir
+                var inner = Directory.GetDirectories(extractTemp).FirstOrDefault();
+                if (inner != null)
+                {
+                    foreach (var entry in Directory.GetFileSystemEntries(inner))
+                    {
+                        string dest = Path.Combine(ProjectNodeDir, Path.GetFileName(entry));
+                        if (Directory.Exists(entry))
+                        {
+                            if (Directory.Exists(dest)) Directory.Delete(dest, true);
+                            Directory.Move(entry, dest);
+                        }
+                        else
+                        {
+                            if (File.Exists(dest)) File.Delete(dest);
+                            File.Move(entry, dest);
+                        }
+                    }
+                }
+
+                Directory.Delete(extractTemp, true);
+                File.Delete(tempZip);
+
+                if (File.Exists(ProjectNodeExe))
+                {
+                    var v = ProcessHelper.Run(ProjectNodeExe, "--version");
+                    onOutput($"便携 Node.js 已就绪：{v.output.Trim()} 路径：{ProjectNodeExe}");
+                    return true;
+                }
+                onOutput("解压后未找到 node.exe。请手动安装 Node.js >= 24。");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                onOutput($"下载/解压失败：{ex.Message}");
+                return false;
+            }
+        }
+
+        private static async Task<string> GetLatestNodeZipUrlAsync()
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                string json = await client.GetStringAsync("https://nodejs.org/dist/index.json");
+                using var doc = JsonDocument.Parse(json);
+                foreach (var item in doc.RootElement.EnumerateArray())
+                {
+                    string ver = item.GetProperty("version").GetString();
+                    if (ver.StartsWith("v24.", StringComparison.OrdinalIgnoreCase))
+                        return $"https://nodejs.org/dist/{ver}/node-{ver}-win-x64.zip";
+                }
+            }
+            catch { }
+            return null;
         }
     }
 }

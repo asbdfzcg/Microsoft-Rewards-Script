@@ -70,9 +70,13 @@ namespace RewardsManager
             bool hasBrowser = hasModules && EnvCheck.HasBrowser();
             bool hasConfig = EnvCheck.HasConfig();
 
-            string nodeText = node.ok
-                ? node.version + " ✓"
-                : (string.IsNullOrEmpty(node.version) ? "未安装" : node.version + "（版本过低，需 ≥24）");
+            string nodeText;
+            if (node.ok)
+                nodeText = $"{node.version} ✓ ({node.path})";
+            else if (string.IsNullOrEmpty(node.version))
+                nodeText = "未安装";
+            else
+                nodeText = $"{node.version}（版本过低，需 ≥24）";
             AddStatus("Node.js (需 ≥24):", nodeText, node.ok);
             AddStatus("依赖 node_modules:", hasModules ? "已安装" : "缺失（需安装）", hasModules);
             AddStatus("构建产物 dist:", hasDist ? "已生成" : "缺失（需构建）", hasDist);

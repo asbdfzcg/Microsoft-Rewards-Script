@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,6 +11,14 @@ namespace RewardsManager
     /// <summary>进程辅助：运行外部命令并捕获输出</summary>
     internal static class ProcessHelper
     {
+        /// <summary>
+        /// 使用系统 OEM 代码页读取子进程输出。
+        /// cmd.exe 的内部消息（如“不是内部或外部命令”）按 OEM 编码输出；
+        /// 在中文 Windows 下 OEM=GBK，若按 UTF-8 读取会乱码。
+        /// </summary>
+        private static Encoding ConsoleEncoding =>
+            Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
+
         /// <summary>同步运行命令，返回 (退出码, 输出)</summary>
         public static (int exitCode, string output) Run(string fileName, string arguments, string workDir = null, int timeoutMs = 30000)
         {
@@ -22,8 +31,8 @@ namespace RewardsManager
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
+                StandardOutputEncoding = ConsoleEncoding,
+                StandardErrorEncoding = ConsoleEncoding
             };
             try
             {
@@ -64,8 +73,8 @@ namespace RewardsManager
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
+                StandardOutputEncoding = ConsoleEncoding,
+                StandardErrorEncoding = ConsoleEncoding
             };
             using var p = Process.Start(psi);
             p.OutputDataReceived += (_, e) => { if (e.Data != null) onOutput(e.Data); };
