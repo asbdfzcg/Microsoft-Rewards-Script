@@ -147,6 +147,16 @@ namespace RewardsManager
                 ProjectPaths.Root, onOutput, pathPrepend, useUtf8: true, extraEnv, cancellationToken);
             if (code != 0) return code;
 
+            // patchright install 在沙盒/安全删除环境下可能返回 0 但文件未就绪，必须显式校验
+            if (!HasBrowser())
+            {
+                onOutput("[错误] 浏览器内核下载后校验失败，请尝试手动运行：");
+                onOutput("  set PLAYWRIGHT_BROWSERS_PATH=0");
+                onOutput("  npx patchright install chromium");
+                return 1;
+            }
+            onOutput(">>> 浏览器内核已就绪");
+
             // 发布包不含 dist/，统一从源码构建（tsconfig.json + src/）。
             // 用户修改配置后重新运行向导即可重建 dist/，故此处始终执行 npm run build。
             onOutput(">>> 执行 npm run build（需要 tsconfig.json + src/）");
