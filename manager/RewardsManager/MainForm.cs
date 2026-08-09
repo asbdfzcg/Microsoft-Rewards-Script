@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -1377,46 +1379,194 @@ namespace RewardsManager
 
         private async System.Threading.Tasks.Task DoUpdate()
         {
-            var gitDir = Path.Combine(ProjectPaths.Root, ".git");
-            if (!Directory.Exists(gitDir))
+            // 读取更新状态里的最新版本与发布页地址
+            string latest = null, releaseUrl = null;
+            try
             {
-                var result = MessageBox.Show(
-                    "当前目录是便携版发布包，不含 .git 仓库，无法通过 git pull 自动更新代码。\n\n" +
-                    "请前往 GitHub Release 下载新版压缩包，解压覆盖后运行。\n\n" +
-                    "是否立即打开项目发布页面？",
-                    "便携版无法自动更新",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Information);
-                if (result == DialogResult.Yes)
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = ProjectRepoUrl + "/releases",
-                        UseShellExecute = true
-                    });
-                }
+                using var doc = JsonDocument.Parse(File.ReadAllText(ProjectPaths.UpdateStatusFile));
+                var root = doc.RootElement;
+                if (root.TryGetProperty("latestVersion", out var lv)) latest = lv.GetString();
+                if (root.TryGetProperty("releaseUrl", out var ru)) releaseUrl = ru.GetString();
+            }
+            catch { }
+
+            var cur = ReadCurrentVersion();
+            if (string.IsNullOrEmpty(latest) || latest == cur)
+            {
+                MessageBox.Show("当前已是最新版本，无需更新。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            if (MessageBox.Show("更新将执行 git pull + npm install + 重新构建，期间脚本无法运行。继续？", "确认更新",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            if (MessageBox.Show(
+                    $"将自动从 GitHub 下载 v{latest} 并覆盖安装，期间脚本无法运行。\n" +
+                    "你的 .env、config.json、node_modules 与日志将被保留。继续？",
+                    "确认更新",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-            var npmCmd = @"D:\Program Files\nodejs\npm.cmd";
-            if (!File.Exists(npmCmd)) npmCmd = "npm.cmd";
-            var cmd = $"git pull && \"{npmCmd}\" install && \"{npmCmd}\" run build";
+            var downloadUrl = BuildDownloadUrl(releaseUrl, latest);
             var win = new OutputWindow("正在更新 Microsoft Rewards Script...");
             win.Show(this);
-            int code = await win.RunCommandAsync("cmd.exe", "/c " + cmd, ProjectPaths.Root);
-            if (code == 0)
+
+            if (string.IsNullOrEmpty(downloadUrl))
             {
-                try { if (File.Exists(ProjectPaths.UpdateSkippedFile)) File.Delete(ProjectPaths.UpdateSkippedFile); } catch { }
-                RecheckUpdates();
-                MessageBox.Show("更新完成！", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                win.AppendSafe("[错误] 无法构造下载地址，请手动前往 GitHub Release 下载。");
+                Process.Start(new ProcessStartInfo { FileName = ProjectRepoUrl + "/releases", UseShellExecute = true });
+                MessageBox.Show("无法自动更新，已为你打开发布页面。", "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
-            else
+
+            // 1. 下载
+            var tmpZip = Path.Combine(Path.GetTempPath(), $"mrs-update-{latest}.zip");
+            try
             {
-                MessageBox.Show("更新失败，请查看输出窗口中的错误信息。", "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (File.Exists(tmpZip)) File.Delete(tmpZip);
+                await DownloadFileAsync(downloadUrl, tmpZip, p => win.AppendSafe($"下载中… {p}%"));
+                win.AppendSafe("下载完成，正在解压…");
             }
+            catch (Exception ex)
+            {
+                win.AppendSafe("[错误] 下载失败：" + ex.Message);
+                MessageBox.Show("下载失败：" + ex.Message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // 2. 解压
+            string sourceDir;
+            var extractDir = Path.Combine(Path.GetTempPath(), $"mrs-update-{latest}");
+            try
+            {
+                if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
+                ZipFile.ExtractToDirectory(tmpZip, extractDir);
+                // 兼容压缩包内层带顶层文件夹的情况
+                sourceDir = extractDir;
+                if (!File.Exists(Path.Combine(extractDir, "package.json")))
+                {
+                    var top = Directory.GetDirectories(extractDir);
+                    if (top.Length == 1) sourceDir = top[0];
+                }
+            }
+            catch (Exception ex)
+            {
+                win.AppendSafe("[错误] 解压失败：" + ex.Message);
+                MessageBox.Show("解压失败：" + ex.Message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // 3. 生成更新脚本并启动（等待本进程退出后覆盖安装并重启）
+            var updaterPath = Path.Combine(Path.GetTempPath(), "mrs-updater.ps1");
+            File.WriteAllText(updaterPath, BuildUpdaterScript(), new UTF8Encoding(false));
+
+            var selfExe = Process.GetCurrentProcess().MainModule?.FileName ?? Application.ExecutablePath;
+            var pid = Process.GetCurrentProcess().Id;
+            var node = EnvCheck.FindNodePath();
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{updaterPath}\" " +
+                            $"-Target \"{ProjectPaths.Root}\" -Source \"{sourceDir}\" -Pid {pid} " +
+                            $"-Self \"{selfExe}\" -Node \"{node}\"",
+                UseShellExecute = true,
+                CreateNoWindow = true
+            };
+            try
+            {
+                Process.Start(psi);
+                win.AppendSafe("更新程序已启动，本程序即将退出以完成安装…");
+                await System.Threading.Tasks.Task.Delay(600);
+                // 删除已下载的临时压缩包（解压目录留给更新脚本清理）
+                try { File.Delete(tmpZip); } catch { }
+                Application.Exit();
+            }
+            catch (Exception ex)
+            {
+                win.AppendSafe("[错误] 无法启动更新程序：" + ex.Message);
+                MessageBox.Show("无法启动更新程序：" + ex.Message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>从 package.json 读取当前版本号</summary>
+        private string ReadCurrentVersion()
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(ProjectPaths.PackageJson));
+                return doc.RootElement.GetProperty("version").GetString() ?? "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>根据发布页地址和版本号构造压缩包下载直链</summary>
+        private string BuildDownloadUrl(string releaseUrl, string latest)
+        {
+            if (string.IsNullOrEmpty(releaseUrl) || string.IsNullOrEmpty(latest)) return null;
+            var dl = releaseUrl.Replace("/releases/tag/", "/releases/download/");
+            var asset = $"Microsoft-Rewards-Script-portable-v{latest}.zip";
+            return dl.TrimEnd('/') + "/" + asset;
+        }
+
+        /// <summary>带进度的文件下载</summary>
+        private async System.Threading.Tasks.Task DownloadFileAsync(string url, string dest, Action<int> onProgress)
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+            client.DefaultRequestHeaders.Add("User-Agent", "RewardsManager");
+            using var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            resp.EnsureSuccessStatusCode();
+            var total = resp.Content.Headers.ContentLength ?? -1L;
+            using var stream = await resp.Content.ReadAsStreamAsync();
+            using var fs = File.Create(dest);
+            var buffer = new byte[81920];
+            long read = 0;
+            int n;
+            while ((n = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await fs.WriteAsync(buffer, 0, n);
+                read += n;
+                if (total > 0) onProgress((int)(read * 100 / total));
+            }
+        }
+
+        /// <summary>生成更新脚本（PowerShell）：等待主进程退出 → 覆盖安装（保留用户数据）→ 重新构建 → 重启</summary>
+        private string BuildUpdaterScript()
+        {
+            return string.Join("\r\n", new[]
+            {
+                "param([string]$Target, [string]$Source, [int]$Pid, [string]$Self, [string]$Node)",
+                "$ErrorActionPreference = 'Continue'",
+                "$log = Join-Path $env:TEMP 'mrs-updater.log'",
+                "function Log($m){ Add-Content -Path $log -Value \"$(Get-Date -Format 'HH:mm:ss') $m\" }",
+                "Log 'Updater started. target=' + $Target + ' source=' + $Source",
+                "# 等待主进程退出",
+                "try {",
+                "  $p = Get-Process -Id $Pid -ErrorAction SilentlyContinue",
+                "  while ($p -and -not $p.HasExited) { Start-Sleep -Seconds 1; $p.Refresh() }",
+                "} catch { }",
+                "Log 'Main process exited.'",
+                "# 覆盖安装（保留用户数据）",
+                "$excludedDirs = @('node_modules', 'logs', '.git', '.workbuddy')",
+                "$excludedFiles = @('.env', 'config.json', 'update-status.json', 'update-skipped.json')",
+                "$args1 = @($Source, $Target, '/E', '/R:2', '/W:2', '/NP', '/NFL', '/NDL')",
+                "foreach ($d in $excludedDirs) { $args1 += '/XD'; $args1 += $d }",
+                "foreach ($f in $excludedFiles) { $args1 += '/XF'; $args1 += $f }",
+                "Log ('Robocopy ' + ($args1 -join ' '))",
+                "& robocopy.exe @args1",
+                "Log ('Robocopy exit: ' + $LASTEXITCODE)",
+                "# 重新构建 dist（依赖 + 构建）",
+                "$nodeDir = Split-Path $Node",
+                "$npm = Join-Path $nodeDir 'npm.cmd'",
+                "if (-not (Test-Path $npm)) { $npm = 'npm.cmd' }",
+                "$env:PATH = $nodeDir + ';' + $env:PATH",
+                "$env:PLAYWRIGHT_BROWSERS_PATH = '0'",
+                "Log 'npm install...'",
+                "& cmd.exe /c \"chcp 65001 >nul & `\"$npm`\" install\" 2>&1 | ForEach-Object { Log $_ }",
+                "Log 'npm run build...'",
+                "& cmd.exe /c \"chcp 65001 >nul & `\"$npm`\" run build\" 2>&1 | ForEach-Object { Log $_ }",
+                "# 重启程序",
+                "Log ('Restarting ' + $Self)",
+                "Start-Process -FilePath $Self",
+                "Log 'Done.'"
+            });
         }
 
         private void SkipVersion()

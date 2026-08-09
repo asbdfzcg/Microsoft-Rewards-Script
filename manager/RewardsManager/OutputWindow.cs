@@ -47,5 +47,14 @@ namespace RewardsManager
             txtOutput.SelectionStart = txtOutput.TextLength;
             txtOutput.ScrollToCaret();
         }
+
+        /// <summary>供外部异步线程安全追加一行输出</summary>
+        public void AppendSafe(string line)
+        {
+            if (txtOutput.InvokeRequired)
+                Invoke((Action)(() => AppendLine(line)));
+            else
+                AppendLine(line);
+        }
     }
 }
