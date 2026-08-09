@@ -58,6 +58,7 @@ namespace RewardsManager
         private TextBox lblUpdateState;
         private RichTextBox txtChangelog;
         private Button btnUpdate, btnSkip;
+        private const string ProjectRepoUrl = "https://github.com/asbdfzcg/Microsoft-Rewards-Script";
 
 
         public MainForm(int initialTab = 0, int setGap = -1, bool verify = false, bool verifySwitch = false)
@@ -1259,20 +1260,51 @@ namespace RewardsManager
             };
             grpLog.Controls.Add(txtChangelog);
 
-            var btnRow = new FlowLayoutPanel
+            var btnRow = new TableLayoutPanel
             {
                 Dock = DockStyle.Bottom,
                 AutoSize = true,
+                ColumnCount = 3,
+                RowCount = 1,
+                Margin = new Padding(0, 0, 0, 8)
+            };
+            btnRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            btnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            btnRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            var leftFlow = new FlowLayoutPanel
+            {
+                AutoSize = true,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = true,
-                Margin = new Padding(0, 0, 0, 8)
+                Margin = Padding.Empty
             };
             btnUpdate = MkButton("立即更新", async (_, _) => await DoUpdate());
             btnSkip = MkButton("跳过此版本", (_, _) => SkipVersion());
             var btnRecheck = MkButton("重新检查更新", (_, _) => RecheckUpdates());
-            btnRow.Controls.Add(btnUpdate);
-            btnRow.Controls.Add(btnSkip);
-            btnRow.Controls.Add(btnRecheck);
+            leftFlow.Controls.Add(btnUpdate);
+            leftFlow.Controls.Add(btnSkip);
+            leftFlow.Controls.Add(btnRecheck);
+
+            var rightFlow = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Margin = Padding.Empty
+            };
+            var btnHome = MkButton("项目主页", (_, _) =>
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ProjectRepoUrl,
+                    UseShellExecute = true
+                });
+            });
+            rightFlow.Controls.Add(btnHome);
+
+            btnRow.Controls.Add(leftFlow, 0, 0);
+            btnRow.Controls.Add(rightFlow, 2, 0);
 
             panel.Controls.Add(grpLog);
             panel.Controls.Add(btnRow);
