@@ -1377,6 +1377,27 @@ namespace RewardsManager
 
         private async System.Threading.Tasks.Task DoUpdate()
         {
+            var gitDir = Path.Combine(ProjectPaths.Root, ".git");
+            if (!Directory.Exists(gitDir))
+            {
+                var result = MessageBox.Show(
+                    "当前目录是便携版发布包，不含 .git 仓库，无法通过 git pull 自动更新代码。\n\n" +
+                    "请前往 GitHub Release 下载新版压缩包，解压覆盖后运行。\n\n" +
+                    "是否立即打开项目发布页面？",
+                    "便携版无法自动更新",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information);
+                if (result == DialogResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = ProjectRepoUrl + "/releases",
+                        UseShellExecute = true
+                    });
+                }
+                return;
+            }
+
             if (MessageBox.Show("更新将执行 git pull + npm install + 重新构建，期间脚本无法运行。继续？", "确认更新",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
