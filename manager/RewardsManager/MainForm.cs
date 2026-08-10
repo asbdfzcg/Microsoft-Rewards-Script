@@ -1481,7 +1481,7 @@ namespace RewardsManager
             try
             {
                 Process.Start(psi);
-                var logPath = Path.Combine(Path.GetTempPath(), "mrs-updater.log");
+                var logPath = Path.Combine(ProjectPaths.Root, "autorun", "update-log.txt");
                 win.AppendSafe("更新程序已启动，本程序即将退出以完成安装。");
                 win.AppendSafe($"如安装后未自动重启，请查看日志：{logPath}");
                 await System.Threading.Tasks.Task.Delay(1000);
@@ -1599,7 +1599,7 @@ namespace RewardsManager
             {
                 "param([string]$Target, [string]$Source, [int]$Pid, [string]$Self, [string]$Node)",
                 "$ErrorActionPreference = 'Continue'",
-                "$log = Join-Path $Target 'autorun' 'update-log.txt'",
+                "$log = Join-Path $Target 'autorun/update-log.txt'",
                 "function Log($m){ Add-Content -Path $log -Value \"$(Get-Date -Format 'HH:mm:ss') $m\" }",
                 "Log \"Updater started.\"",
                 "Log \"Target=$Target\"",
