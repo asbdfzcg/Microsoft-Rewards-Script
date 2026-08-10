@@ -169,6 +169,7 @@ namespace RewardsManager
                         logLayout.RowStyles[1].Height = bandGap;
                 }
                 RefreshTaskStatus();
+                ReconcileLocalVersion();
                 RefreshUpdateStatus();
             };
             Shown += (_, _) =>
@@ -1512,6 +1513,35 @@ namespace RewardsManager
             catch { return ""; }
         }
 
+        /// <summary>
+        /// 启动自检：把 update-status.json 的 currentVersion 与真实的 package.json 版本对齐。
+        /// 更新脚本即使某一环节失败（如未能改写 currentVersion），重启后界面也能立即显示正确版本，
+        /// 无需再手动点一次「检查更新」。
+        /// </summary>
+        private void ReconcileLocalVersion()
+        {
+            try
+            {
+                if (!File.Exists(ProjectPaths.UpdateStatusFile)) return;
+                var current = ReadCurrentVersion();
+                if (string.IsNullOrEmpty(current)) return;
+                var json = File.ReadAllText(ProjectPaths.UpdateStatusFile);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("currentVersion", out var cv) || cv.GetString() != current)
+                {
+                    // 保留其它字段，仅修正 currentVersion
+                    var dict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(json)
+                               ?? new System.Collections.Generic.Dictionary<string, object>();
+                    dict["currentVersion"] = current;
+                    File.WriteAllText(ProjectPaths.UpdateStatusFile,
+                        System.Text.Json.JsonSerializer.Serialize(dict, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }),
+                        new System.Text.UTF8Encoding(false));
+                }
+            }
+            catch { /* 自检失败不阻断启动 */ }
+        }
+
         /// <summary>根据发布页地址和版本号构造压缩包下载直链</summary>
         private string BuildDownloadUrl(string releaseUrl, string latest)
         {
@@ -1649,7 +1679,7 @@ namespace RewardsManager
                 "try {",
                 "  $pkg = Get-Content (Join-Path $Target 'package.json') -Raw | ConvertFrom-Json",
                 "  $newVer = $pkg.version",
-                "  $usPath = Join-Path $Target 'autorun' 'update-status.json'",
+                "  $usPath = Join-Path $Target 'autorun/update-status.json'",
                 "  if (Test-Path $usPath) {",
                 "    $us = Get-Content $usPath -Raw | ConvertFrom-Json",
                 "    $us.currentVersion = $newVer",
