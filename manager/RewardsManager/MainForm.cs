@@ -1463,7 +1463,9 @@ namespace RewardsManager
             var updaterPath = Path.Combine(Path.GetTempPath(), "mrs-updater.ps1");
             File.WriteAllText(updaterPath, BuildUpdaterScript(), new UTF8Encoding(false));
 
-            var selfExe = Process.GetCurrentProcess().MainModule?.FileName ?? Application.ExecutablePath;
+            // 单文件发布时 Process.MainModule.FileName 会指向临时解压目录，
+            // 必须用 Application.ExecutablePath 才能拿到用户实际双击的入口 exe。
+            var selfExe = Application.ExecutablePath;
             var pid = Process.GetCurrentProcess().Id;
             var node = EnvCheck.FindNodePath();
 
@@ -1479,8 +1481,10 @@ namespace RewardsManager
             try
             {
                 Process.Start(psi);
-                win.AppendSafe("更新程序已启动，本程序即将退出以完成安装…");
-                await System.Threading.Tasks.Task.Delay(600);
+                var logPath = Path.Combine(Path.GetTempPath(), "mrs-updater.log");
+                win.AppendSafe("更新程序已启动，本程序即将退出以完成安装。");
+                win.AppendSafe($"如安装后未自动重启，请查看日志：{logPath}");
+                await System.Threading.Tasks.Task.Delay(1000);
                 // 删除已下载的临时压缩包（解压目录留给更新脚本清理）
                 try { File.Delete(tmpZip); } catch { }
                 Application.Exit();
@@ -1586,7 +1590,7 @@ namespace RewardsManager
             return msg;
         }
 
-        /// <summary>生成更新脚本（PowerShell）：等待主进程退出 → 覆盖安装（保留用户数据）→ 重新构建 → 重启</summary>
+                        /// <summary>生成更新脚本（PowerShell）：等待主进程退出 → 覆盖安装（保留用户数据）→ 重新构建 → 重启</summary>
         private string BuildUpdaterScript()
         {
             return string.Join("\r\n", new[]
@@ -1594,14 +1598,24 @@ namespace RewardsManager
                 "param([string]$Target, [string]$Source, [int]$Pid, [string]$Self, [string]$Node)",
                 "$ErrorActionPreference = 'Continue'",
                 "$log = Join-Path $env:TEMP 'mrs-updater.log'",
-                "function Log($m){ Add-Content -Path $log -Value \"$(Get-Date -Format 'HH:mm:ss') $m\" }",
-                "Log 'Updater started. target=' + $Target + ' source=' + $Source",
+                "function Log($m){ Add-Content -Path $log -Value \\\"$(Get-Date -Format 'HH:mm:ss') $m\\\" }",
+                "$Self = $Self.Trim('\\\"').Trim(\\\"'\\\")",
+                "$Node = $Node.Trim('\\\"').Trim(\\\"'\\\")",
+                "Log \"Updater started.\"",
+                "Log \"Target=$Target\"",
+                "Log \"Source=$Source\"",
+                "Log \"Self=$Self\"",
+                "Log \"Node=$Node\"",
                 "# 等待主进程退出",
                 "try {",
                 "  $p = Get-Process -Id $Pid -ErrorAction SilentlyContinue",
                 "  while ($p -and -not $p.HasExited) { Start-Sleep -Seconds 1; $p.Refresh() }",
-                "} catch { }",
+                "} catch { Log (\"Wait process error: \" + $_.Exception.Message) }",
                 "Log 'Main process exited.'",
+                "# 校验关键路径",
+                "if (-not (Test-Path $Source)) { Log \"ERROR: Source directory not found.\"; exit 1 }",
+                "if (-not (Test-Path $Target)) { Log \"ERROR: Target directory not found.\"; exit 1 }",
+                "if (-not (Test-Path $Self)) { Log \"ERROR: Self executable not found.\"; exit 1 }",
                 "# 覆盖安装（保留用户数据）",
                 "$excludedDirs = @('node_modules', 'logs', '.git', '.workbuddy')",
                 "$excludedFiles = @('.env', 'config.json', 'update-status.json', 'update-skipped.json')",
@@ -1610,20 +1624,28 @@ namespace RewardsManager
                 "foreach ($f in $excludedFiles) { $args1 += '/XF'; $args1 += $f }",
                 "Log ('Robocopy ' + ($args1 -join ' '))",
                 "& robocopy.exe @args1",
-                "Log ('Robocopy exit: ' + $LASTEXITCODE)",
+                "$rc = $LASTEXITCODE",
+                "Log (\"Robocopy exit: \" + $rc)",
+                "if ($rc -ge 8) { Log \"ERROR: Robocopy reported a failure.\"; exit 1 }",
                 "# 重新构建 dist（依赖 + 构建）",
-                "$nodeDir = Split-Path $Node",
-                "$npm = Join-Path $nodeDir 'npm.cmd'",
-                "if (-not (Test-Path $npm)) { $npm = 'npm.cmd' }",
-                "$env:PATH = $nodeDir + ';' + $env:PATH",
+                "$nodeDir = if ($Node) { Split-Path $Node -Parent } else { '' }",
+                "$npm = if ($nodeDir -and (Test-Path (Join-Path $nodeDir 'npm.cmd'))) { Join-Path $nodeDir 'npm.cmd' } else { 'npm.cmd' }",
+                "if ($nodeDir) { $env:PATH = $nodeDir + ';' + $env:PATH }",
                 "$env:PLAYWRIGHT_BROWSERS_PATH = '0'",
-                "Log 'npm install...'",
+                "Log \"npm install... (npm=$npm)\"",
                 "& cmd.exe /c \"chcp 65001 >nul & `\"$npm`\" install\" 2>&1 | ForEach-Object { Log $_ }",
+                "$npmRc = $LASTEXITCODE",
+                "Log (\"npm install exit: \" + $npmRc)",
                 "Log 'npm run build...'",
                 "& cmd.exe /c \"chcp 65001 >nul & `\"$npm`\" run build\" 2>&1 | ForEach-Object { Log $_ }",
+                "$buildRc = $LASTEXITCODE",
+                "Log (\"npm run build exit: \" + $buildRc)",
+                "if ($buildRc -ne 0) { Log \"ERROR: Build failed.\"; exit 1 }",
                 "# 重启程序",
-                "Log ('Restarting ' + $Self)",
-                "Start-Process -FilePath $Self",
+                "Log (\"Restarting \" + $Self)",
+                "$workDir = Split-Path $Self",
+                "try { Start-Process -FilePath $Self -WorkingDirectory $workDir }",
+                "catch { Log (\"ERROR: Failed to restart: \" + $_.Exception.Message) }",
                 "Log 'Done.'"
             });
         }
