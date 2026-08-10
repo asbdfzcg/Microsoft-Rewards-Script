@@ -5,7 +5,9 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Security;
 using System.Runtime.InteropServices;
+using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -1421,13 +1423,17 @@ namespace RewardsManager
             try
             {
                 if (File.Exists(tmpZip)) File.Delete(tmpZip);
-                await DownloadFileAsync(downloadUrl, tmpZip, p => win.AppendSafe($"下载中… {p}%"));
+                await DownloadFileAsync(downloadUrl, tmpZip, msg => win.AppendSafe(msg));
                 win.AppendSafe("下载完成，正在解压…");
             }
             catch (Exception ex)
             {
-                win.AppendSafe("[错误] 下载失败：" + ex.Message);
-                MessageBox.Show("下载失败：" + ex.Message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                var detail = DescribeNetworkError(ex);
+                var hint = "常见原因：网络不稳定、DNS 污染、TLS 版本受限或 GitHub 访问受阻。" +
+                           "可尝试切换网络/代理，或点击下方「项目主页」手动下载 zip 解压覆盖。";
+                win.AppendSafe($"[错误] 下载失败：{detail}");
+                win.AppendSafe($"[提示] {hint}");
+                MessageBox.Show($"下载失败：{detail}\n\n{hint}", "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -1506,25 +1512,78 @@ namespace RewardsManager
             return dl.TrimEnd('/') + "/" + asset;
         }
 
-        /// <summary>带进度的文件下载</summary>
-        private async System.Threading.Tasks.Task DownloadFileAsync(string url, string dest, Action<int> onProgress)
+        /// <summary>带进度的文件下载（显式 TLS1.2/1.3 + 自动重试）</summary>
+        private async System.Threading.Tasks.Task DownloadFileAsync(string url, string dest, Action<string> onProgress)
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-            client.DefaultRequestHeaders.Add("User-Agent", "RewardsManager");
-            using var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-            resp.EnsureSuccessStatusCode();
-            var total = resp.Content.Headers.ContentLength ?? -1L;
-            using var stream = await resp.Content.ReadAsStreamAsync();
-            using var fs = File.Create(dest);
-            var buffer = new byte[81920];
-            long read = 0;
-            int n;
-            while ((n = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            const int maxRetries = 3;
+            Exception lastEx = null;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                await fs.WriteAsync(buffer, 0, n);
-                read += n;
-                if (total > 0) onProgress((int)(read * 100 / total));
+                try
+                {
+                    var handler = new SocketsHttpHandler
+                    {
+                        SslOptions = new SslClientAuthenticationOptions
+                        {
+                            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                        },
+                        ConnectTimeout = TimeSpan.FromSeconds(30),
+                        PooledConnectionLifetime = TimeSpan.FromMinutes(1)
+                    };
+
+                    using var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(10) };
+                    client.DefaultRequestHeaders.Add("User-Agent", "RewardsManager");
+                    onProgress($"正在连接… (第 {attempt} 次尝试)");
+                    using var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                    resp.EnsureSuccessStatusCode();
+                    var total = resp.Content.Headers.ContentLength ?? -1L;
+                    using var stream = await resp.Content.ReadAsStreamAsync();
+                    using var fs = File.Create(dest);
+                    var buffer = new byte[81920];
+                    long read = 0;
+                    int n;
+                    while ((n = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        await fs.WriteAsync(buffer, 0, n);
+                        read += n;
+                        if (total > 0) onProgress($"下载中… {(int)(read * 100 / total)}%");
+                    }
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                    if (attempt < maxRetries)
+                    {
+                        onProgress($"连接失败：{DescribeNetworkError(ex)}，{2 * attempt} 秒后重试…");
+                        await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(2 * attempt));
+                    }
+                }
             }
+
+            throw lastEx;
+        }
+
+        /// <summary>把网络异常转换成更友好的提示</summary>
+        private string DescribeNetworkError(Exception ex)
+        {
+            if (ex == null) return "未知错误";
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            if (msg.Contains("SSL", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("TLS", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("authentication", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("handshake", StringComparison.OrdinalIgnoreCase))
+                return "TLS/SSL 握手失败";
+            if (msg.Contains("Name or service not known", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("No such host", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("could not resolve", StringComparison.OrdinalIgnoreCase))
+                return "DNS 解析失败";
+            if (msg.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+                return "连接超时";
+            if (msg.Contains("refused", StringComparison.OrdinalIgnoreCase))
+                return "连接被拒绝";
+            return msg;
         }
 
         /// <summary>生成更新脚本（PowerShell）：等待主进程退出 → 覆盖安装（保留用户数据）→ 重新构建 → 重启</summary>
