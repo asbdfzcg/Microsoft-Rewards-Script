@@ -1487,7 +1487,9 @@ namespace RewardsManager
                 await System.Threading.Tasks.Task.Delay(1000);
                 // 删除已下载的临时压缩包（解压目录留给更新脚本清理）
                 try { File.Delete(tmpZip); } catch { }
-                Application.Exit();
+                // 必须用 Environment.Exit 强制终止进程，确保 updater 能及时检测到
+                // 本进程已退出；Application.Exit() 在 async 上下文里不一定真正退出。
+                Environment.Exit(0);
             }
             catch (Exception ex)
             {
@@ -1597,18 +1599,17 @@ namespace RewardsManager
             {
                 "param([string]$Target, [string]$Source, [int]$Pid, [string]$Self, [string]$Node)",
                 "$ErrorActionPreference = 'Continue'",
-                "$log = Join-Path $env:TEMP 'mrs-updater.log'",
+                "$log = Join-Path $Target 'autorun' 'update-log.txt'",
                 "function Log($m){ Add-Content -Path $log -Value \"$(Get-Date -Format 'HH:mm:ss') $m\" }",
                 "Log \"Updater started.\"",
                 "Log \"Target=$Target\"",
                 "Log \"Source=$Source\"",
                 "Log \"Self=$Self\"",
                 "Log \"Node=$Node\"",
-                "# 等待主进程退出",
-                "try {",
-                "  $p = Get-Process -Id $Pid -ErrorActionSilentlyContinue",
-                "  while ($p -and -not $p.HasExited) { Start-Sleep -Seconds 1; $p.Refresh() }",
-                "} catch { Log (\"Wait process error: \" + $_.Exception.Message) }",
+                "# 等待主进程退出（最多等 30 秒，超时则强制继续，避免主进程假死导致卡住）",
+                "try { Wait-Process -Id $Pid -Timeout 30 -ErrorAction SilentlyContinue }",
+                "catch { Log (\"Wait process warning: \" + $_.Exception.Message) }",
+                "Log 'Main process exited (or timeout reached).'",
                 "Log 'Main process exited.'",
                 "# 校验关键路径",
                 "if (-not (Test-Path $Source)) { Log \"ERROR: Source directory not found.\"; exit 1 }",
