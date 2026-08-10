@@ -36,3 +36,4 @@ geometry.txt
 
 # --- 临时路径探测测试目录（调试用，非项目源码）---
 scripts/_pathtest/
+scripts/_updtest/

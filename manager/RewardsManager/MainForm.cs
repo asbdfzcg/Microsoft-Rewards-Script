@@ -1468,13 +1468,16 @@ namespace RewardsManager
             var selfExe = Application.ExecutablePath;
             var pid = Process.GetCurrentProcess().Id;
             var node = EnvCheck.FindNodePath();
+            // node 为空时不传 -Node 参数（PowerShell 的 "-Node \"\"" 会被丢弃并导致参数绑定失败）；
+            // 脚本侧 $Node 已有 = '' 默认值兜底。
+            var nodeArg = string.IsNullOrEmpty(node) ? "" : $"-Node \"{node}\" ";
 
             var psi = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{updaterPath}\" " +
-                            $"-Target \"{ProjectPaths.Root}\" -Source \"{sourceDir}\" -Pid {pid} " +
-                            $"-Self \"{selfExe}\" -Node \"{node}\"",
+                Arguments =                             $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{updaterPath}\" " +
+                            $"-Target \"{ProjectPaths.Root}\" -Source \"{sourceDir}\" -ParentPid {pid} " +
+                            $"-Self \"{selfExe}\" " + nodeArg,
                 UseShellExecute = true,
                 CreateNoWindow = true
             };
@@ -1597,7 +1600,7 @@ namespace RewardsManager
         {
                                                 return string.Join("\r\n", new[]
             {
-                "param([string]$Target, [string]$Source, [int]$Pid, [string]$Self, [string]$Node)",
+                "param([string]$Target, [string]$Source, [int]$ParentPid, [string]$Self, [string]$Node = '')",
                 "$ErrorActionPreference = 'Continue'",
                 "$log = Join-Path $Target 'autorun/update-log.txt'",
                 "function Log($m){ try { Add-Content -Path $log -Value \"$(Get-Date -Format 'HH:mm:ss') $m\" } catch {} }",
@@ -1609,7 +1612,7 @@ namespace RewardsManager
                 "Log \"Self=$Self\"",
                 "Log \"Node=$Node\"",
                 "# 等待主进程退出（最多等 30 秒，超时则强制继续，避免主进程假死导致卡住）",
-                "try { Wait-Process -Id $Pid -Timeout 30 -ErrorAction SilentlyContinue }",
+                "try { Wait-Process -Id $ParentPid -Timeout 30 -ErrorAction SilentlyContinue }",
                 "catch { Log (\"Wait process warning: \" + $_.Exception.Message) }",
                 "Log 'Main process exited (or timeout reached).'",
                 "Log 'Main process exited.'",
