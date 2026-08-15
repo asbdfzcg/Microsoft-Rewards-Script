@@ -8,21 +8,11 @@ $TaskName   = 'MicrosoftRewardsScript'
 
 if (-not (Test-Path $RunScript)) { throw "找不到运行脚本: $RunScript" }
 
-# 查找 wt.exe（Windows Terminal）
-$wtPath = (Get-Command wt.exe -ErrorAction SilentlyContinue).Source
-if (-not $wtPath) {
-    $wtPath = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wt.exe'
-}
-$useWt = Test-Path $wtPath
-
-if ($useWt) {
-    $execPath = $wtPath
-    $execArgs = "--title `"Microsoft Rewards Script`" -- powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$RunScript`""
-} else {
-    Write-Host "未找到 Windows Terminal，回退到 PowerShell 窗口" -ForegroundColor Yellow
-    $execPath = 'powershell.exe'
-    $execArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$RunScript`""
-}
+# 不再使用 Windows Terminal 启动：wt 会在桌面左下角留下一个可见的
+# PseudoConsoleWindow（灰色方块）。改为直接用 powershell.exe -WindowStyle Hidden
+# 在后台运行，日志已写入 autorun/logs/。
+$execPath = 'powershell.exe'
+$execArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$RunScript`""
 
 # 触发器 1：每天 7:00
 $triggerDaily = New-ScheduledTaskTrigger -Daily -At '07:00'

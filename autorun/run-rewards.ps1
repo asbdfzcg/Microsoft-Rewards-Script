@@ -10,6 +10,39 @@ param(
 # 设置窗口标题（避免在 Windows Terminal 命令行中传中文标题触发 Node.js 断言失败）
 try { $Host.UI.RawUI.WindowTitle = 'Microsoft Rewards Script' } catch {}
 
+# 防御性隐藏 Windows Terminal / ConPTY 遗留的 PseudoConsoleWindow（左下角灰色方块）
+try {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Diagnostics;
+
+namespace Win32 {
+    public class PseudoConsoleHider {
+        [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+        [DllImport("user32.dll", CharSet=CharSet.Auto)] static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+        [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+        public const int SW_HIDE = 0;
+        public static void HidePseudoConsole() {
+            uint pid = (uint)Process.GetCurrentProcess().Id;
+            EnumWindows((hWnd, lParam) => {
+                uint wpid; GetWindowThreadProcessId(hWnd, out wpid);
+                if (wpid == pid) {
+                    StringBuilder cn = new StringBuilder(256); GetClassName(hWnd, cn, 256);
+                    if (cn.ToString() == "PseudoConsoleWindow") { ShowWindow(hWnd, SW_HIDE); }
+                }
+                return true;
+            }, IntPtr.Zero);
+        }
+    }
+}
+'@
+    [Win32.PseudoConsoleHider]::HidePseudoConsole()
+} catch {}
+
 # 统一使用 UTF-8 编码输出日志，避免 WinForms 读取时中文乱码
 $OutputEncoding = [System.Text.Encoding]::UTF8
 $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
