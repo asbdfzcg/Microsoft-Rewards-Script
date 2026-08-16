@@ -15,6 +15,7 @@ namespace RewardsManager
         public static string PackageJson => Path.Combine(Root, "package.json");
         public static string UpdateStatusFile => Path.Combine(AutorunDir, "update-status.json");
         public static string UpdateSkippedFile => Path.Combine(AutorunDir, "update-skipped.json");
+        public static string AutomationSettingsFile => Path.Combine(AutorunDir, "automation-settings.json");
 
         private static string FindRoot()
         {

@@ -91,6 +91,30 @@ function Find-Node {
     return $null
 }
 
+# ---------- Windows 通知（toast，依赖 WinRT，无需第三方模块） ----------
+function Send-Toast([string]$title, [string]$message) {
+    try {
+        # 注册一个 AUMID，确保通知能正常弹出（首次运行时写入注册表）
+        $appId = 'RewardsManager.Automation'
+        $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\$appId"
+        if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
+        New-ItemProperty -Path $regPath -Name 'ShowInActionCenter' -Value 1 -PropertyType DWord -Force | Out-Null
+
+        # 加载 WinRT 通知类型
+        [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+        [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null
+
+        $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+        $texts = $template.GetElementsByTagName('text')
+        $texts.Item(0).AppendChild($template.CreateTextNode($title)) | Out-Null
+        $texts.Item(1).AppendChild($template.CreateTextNode($message)) | Out-Null
+        $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show($toast)
+    } catch {
+        try { Add-Content -Path (Join-Path $LogsDir 'notify-error.log') -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Toast failed: $_" -Encoding UTF8 } catch {}
+    }
+}
+
 # ---------- 1. 等待 1 秒后最小化 Windows Terminal 窗口 ----------
 Start-Sleep -Seconds 1
 try {
@@ -169,10 +193,83 @@ try {
     # 让 patchright/playwright 使用项目内浏览器（与 RewardsManager 环境初始化保持一致）
     $env:PLAYWRIGHT_BROWSERS_PATH = '0'
 
-    # 同时输出到终端与日志文件（不能赋值给变量，否则终端看不到输出）
-    # --no-warnings 屏蔽 Node.js v24 的 SQLite 实验性警告等杂讯
-    & $nodeExe --no-warnings (Join-Path $ProjectDir 'dist\index.js') 2>&1 | Tee-Object -FilePath $RunLog
-    $exitCode = $LASTEXITCODE
+    # 读取自动化设置：通知模式（both=启动+完成 / complete=仅完成 / none=不通知）
+    $notifyMode = 'none'
+    $settingsFile = Join-Path $AutorunDir 'automation-settings.json'
+    if (Test-Path $settingsFile) {
+        try {
+            $s = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($s.notifyMode) { $notifyMode = [string]$s.notifyMode }
+        } catch {}
+    }
+
+    # 后台运行 node：实时把输出写到终端与日志，并捕获关键日志行用于 Windows 通知
+    $script:state = @{
+        RunLogPath    = $RunLog
+        NotifyMode    = $notifyMode
+        StartBuf      = [System.Collections.Generic.List[string]]::new()
+        StartNotified = $false
+    }
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $nodeExe
+    $psi.Arguments = "--no-warnings `"$(Join-Path $ProjectDir 'dist\index.js')`""
+    $psi.WorkingDirectory = $ProjectDir
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo = $psi
+
+    $proc.OutputDataReceived += {
+        param($s, $e)
+        if ($null -ne $e.Data) {
+            $line = $e.Data
+            [Console]::Out.WriteLine($line)
+            Add-Content -Path $script:state.RunLogPath -Value $line -Encoding UTF8
+            # 捕获启动日志行（用于启动时通知）
+            if ($line -match '\[运行开始\]' -or $line -match '\[账户开始\]') { $script:state.StartBuf.Add($line) }
+            if (-not $script:state.StartNotified -and $line -match '\[运行开始\]') {
+                if ($script:state.NotifyMode -eq 'both') {
+                    Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($script:state.StartBuf -join "`n")
+                    $script:state.StartNotified = $true
+                }
+            }
+        }
+    }
+    $proc.ErrorDataReceived += {
+        param($s, $e)
+        if ($null -ne $e.Data) {
+            $line = $e.Data
+            [Console]::Error.WriteLine($line)
+            Add-Content -Path $script:state.RunLogPath -Value $line -Encoding UTF8
+        }
+    }
+    $proc.Start() | Out-Null
+    $proc.BeginOutputReadLine()
+    $proc.BeginErrorReadLine()
+    $proc.WaitForExit()
+    $exitCode = $proc.ExitCode
+    # 稍等异步日志读取线程把最后几行刷入 RunLog，避免收尾行漏抓
+    Start-Sleep -Seconds 1
+
+    # 启动通知兜底：日志中已有运行开始行但事件未触发时，在结束前补发
+    if ($notifyMode -eq 'both' -and -not $script:state.StartNotified -and $script:state.StartBuf.Count -gt 0) {
+        Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($script:state.StartBuf -join "`n")
+    }
+
+    # 完成通知（重新解析日志，确保收尾行拿全）
+    if ($notifyMode -eq 'both' -or $notifyMode -eq 'complete') {
+        $completeLines = @()
+        foreach ($l in (Get-Content -Path $RunLog -Encoding UTF8)) {
+            if ($l -match '\[积分已收集\]' -or $l -match '\[账户结束\]' -or $l -match '\[运行结束\]') { $completeLines += $l }
+        }
+        if ($completeLines.Count -gt 0) {
+            Send-Toast -Title 'Microsoft Rewards Script 运行完成' -Message ($completeLines -join "`n")
+        }
+    }
+
     $outputText = Get-Content -Path $RunLog -Raw -Encoding UTF8
 
     # ---------- 8. 结果判定：退出码 + 获得积分检查 ----------

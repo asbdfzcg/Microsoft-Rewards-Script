@@ -1,5 +1,5 @@
 ﻿# setup-task.ps1 - 创建/覆盖 MicrosoftRewardsScript 计划任务（需管理员权限）
-# 触发器：每天 7:00 + 用户登录时；使用 Windows Terminal 启动并自动最小化
+# 触发器：每天 7:00 + 用户登录时；使用 powershell.exe 启动，窗口模式由 automation-settings.json 决定
 
 $ErrorActionPreference = 'Stop'
 $AutorunDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -9,10 +9,23 @@ $TaskName   = 'MicrosoftRewardsScript'
 if (-not (Test-Path $RunScript)) { throw "找不到运行脚本: $RunScript" }
 
 # 不再使用 Windows Terminal 启动：wt 会在桌面左下角留下一个可见的
-# PseudoConsoleWindow（灰色方块）。改为直接用 powershell.exe -WindowStyle Hidden
-# 在后台运行，日志已写入 autorun/logs/。
+# PseudoConsoleWindow（灰色方块）。改为直接用 powershell.exe 启动，窗口模式由
+# automation-settings.json 中的 windowMode 决定（silent=隐藏 / minimized=最小化 / normal=正常）。
+$windowMode = 'silent'   # 默认静默，与原有行为一致
+$settingsFile = Join-Path $AutorunDir 'automation-settings.json'
+if (Test-Path $settingsFile) {
+    try {
+        $s = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($s.windowMode) { $windowMode = [string]$s.windowMode }
+    } catch {}
+}
+$windowStyle = switch ($windowMode) {
+    'minimized' { 'Minimized' }
+    'normal'    { 'Normal' }
+    default     { 'Hidden' }
+}
 $execPath = 'powershell.exe'
-$execArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$RunScript`""
+$execArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle $windowStyle -File `"$RunScript`""
 
 # 触发器 1：每天 7:00
 $triggerDaily = New-ScheduledTaskTrigger -Daily -At '07:00'

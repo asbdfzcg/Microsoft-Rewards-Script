@@ -56,6 +56,7 @@ namespace RewardsManager
         private StatusGroupBox grpStatus;
         private Label lblTaskDetail, lblTaskTriggers;
         private TextBox txtRunTime;
+        private CheckBox chkSilentWindow, chkNotify;
 
         // 更新页
         private Label lblCurrentVer, lblLatestVer, lblPublished;
@@ -1068,6 +1069,7 @@ namespace RewardsManager
             };
             opsRow.Controls.Add(MkButton("注册/重建计划任务", (_, _) =>
             {
+                try { WriteAutomationSettings(); } catch { }
                 ProcessHelper.RunElevated($"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(ProjectPaths.AutorunDir, "setup-task.ps1")}\"");
                 MessageBox.Show("已请求管理员权限创建任务，完成后点击「刷新状态」查看。", "提示");
             }));
@@ -1110,9 +1112,53 @@ namespace RewardsManager
             timeRow.Controls.Add(txtRunTime);
             timeRow.Controls.Add(MkButton("应用时间（需管理员）", (_, _) => ApplyRunTime()));
 
+            // --- 运行外观与通知设置 ---
+            var appearanceRow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                Margin = new Padding(0, 6, 0, 4)
+            };
+            chkSilentWindow = new CheckBox
+            {
+                Text = "静默窗口（勾选=静默隐藏　半选=最小化　未选=正常窗口）",
+                AutoSize = true,
+                ThreeState = true,
+                Margin = new Padding(0, 2, 0, 2),
+                UseCompatibleTextRendering = true
+            };
+            chkNotify = new CheckBox
+            {
+                Text = "Windows 通知（勾选=启动时+完成都通知　半选=仅完成通知　未选=不通知）",
+                AutoSize = true,
+                ThreeState = true,
+                Margin = new Padding(0, 2, 0, 2),
+                UseCompatibleTextRendering = true
+            };
+            appearanceRow.Controls.Add(chkSilentWindow);
+            appearanceRow.Controls.Add(chkNotify);
+            appearanceRow.Controls.Add(MkButton("保存外观/通知设置", (_, _) => SaveAutomationSettings()));
+
+            var appearanceHint = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                Margin = new Padding(0, 0, 0, 6)
+            };
+            AddWrappedHint(appearanceHint,
+                "说明: 修改「静默窗口」后需点击「注册/重建计划任务」使其对计划任务生效；「Windows 通知」下次运行自动生效。两项设置保存在 autorun/automation-settings.json。");
+
             grpSettings.Controls.Add(hintFlow);
             grpSettings.Controls.Add(opsRow);
             grpSettings.Controls.Add(timeRow);
+            grpSettings.Controls.Add(appearanceRow);
+            grpSettings.Controls.Add(appearanceHint);
+
+            LoadAutomationSettings();
 
             panel.Controls.Add(grpSettings);
             panel.Controls.Add(grpStatus);
@@ -1199,6 +1245,65 @@ namespace RewardsManager
                      "Set-ScheduledTask -TaskName 'MicrosoftRewardsScript' -Trigger @($daily, $logon)";
             ProcessHelper.RunElevated("-NoProfile -Command \"" + ps.Replace("\"", "\\\"") + "\"");
             MessageBox.Show("已请求管理员权限修改运行时间，完成后点击「刷新状态」查看。", "提示");
+        }
+
+        // ---------- 自动化外观/通知设置（持久化到 autorun/automation-settings.json） ----------
+        private static string WindowModeFromCheckState(CheckState cs) =>
+            cs == CheckState.Checked ? "silent" : cs == CheckState.Indeterminate ? "minimized" : "normal";
+        private static CheckState WindowModeToCheckState(string m) =>
+            m == "silent" ? CheckState.Checked : m == "minimized" ? CheckState.Indeterminate : CheckState.Unchecked;
+        private static string NotifyModeFromCheckState(CheckState cs) =>
+            cs == CheckState.Checked ? "both" : cs == CheckState.Indeterminate ? "complete" : "none";
+        private static CheckState NotifyModeToCheckState(string m) =>
+            m == "both" ? CheckState.Checked : m == "complete" ? CheckState.Indeterminate : CheckState.Unchecked;
+
+        private void WriteAutomationSettings()
+        {
+            var obj = new Dictionary<string, string>
+            {
+                ["windowMode"] = WindowModeFromCheckState(chkSilentWindow.CheckState),
+                ["notifyMode"] = NotifyModeFromCheckState(chkNotify.CheckState)
+            };
+            var json = JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(ProjectPaths.AutomationSettingsFile, json, new UTF8Encoding(false));
+        }
+
+        private void SaveAutomationSettings()
+        {
+            try
+            {
+                WriteAutomationSettings();
+                MessageBox.Show(
+                    "自动化设置已保存。\n“静默窗口”需点击「注册/重建计划任务」对计划任务生效；“Windows 通知”下次运行自动生效。",
+                    "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("保存失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void LoadAutomationSettings()
+        {
+            try
+            {
+                if (File.Exists(ProjectPaths.AutomationSettingsFile))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(ProjectPaths.AutomationSettingsFile));
+                    var r = doc.RootElement;
+                    if (r.TryGetProperty("windowMode", out var wm) && wm.ValueKind == JsonValueKind.String)
+                        chkSilentWindow.CheckState = WindowModeToCheckState(wm.GetString());
+                    if (r.TryGetProperty("notifyMode", out var nm) && nm.ValueKind == JsonValueKind.String)
+                        chkNotify.CheckState = NotifyModeToCheckState(nm.GetString());
+                }
+                else
+                {
+                    // 默认：静默窗口（与现有行为一致）+ 不通知
+                    chkSilentWindow.CheckState = CheckState.Checked;
+                    chkNotify.CheckState = CheckState.Unchecked;
+                }
+            }
+            catch { }
         }
 
         // ============================================================
