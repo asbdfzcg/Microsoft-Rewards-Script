@@ -1289,9 +1289,31 @@ namespace RewardsManager
             try
             {
                 WriteAutomationSettings();
-                MessageBox.Show(
-                    "自动化设置已保存。\n“静默窗口”需点击「注册/重建计划任务」对计划任务生效；“Windows 通知”下次运行自动生效。",
-                    "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // 若计划任务已存在，自动重建它以应用新的窗口模式，无需用户再点第二下。
+                bool taskExists = false;
+                try
+                {
+                    var (code, output) = ProcessHelper.Run("powershell.exe",
+                        "-NoProfile -Command \"if (Get-ScheduledTask -TaskName 'MicrosoftRewardsScript' -ErrorAction SilentlyContinue) { 'EXISTS' }\"");
+                    taskExists = code == 0 && output.Contains("EXISTS");
+                }
+                catch { }
+
+                if (taskExists)
+                {
+                    var setupScript = Path.Combine(ProjectPaths.AutorunDir, "setup-task.ps1");
+                    ProcessHelper.RunElevated($"-NoProfile -ExecutionPolicy Bypass -File \"{setupScript}\"");
+                    MessageBox.Show(
+                        "自动化设置已保存，并已请求管理员权限更新计划任务。\n“静默窗口”模式将立即生效；“Windows 通知”下次运行自动生效。",
+                        "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "自动化设置已保存。\n计划任务尚未注册，“静默窗口”需点击「注册/重建计划任务」后生效；“Windows 通知”下次运行自动生效。",
+                        "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
             catch (Exception ex)
             {
