@@ -1129,7 +1129,18 @@ namespace RewardsManager
             };
             appearanceRow.Controls.Add(chkSilentWindow);
             appearanceRow.Controls.Add(chkNotify);
-            appearanceRow.Controls.Add(MkButton("保存外观/通知设置", (_, _) => SaveAutomationSettings()));
+            // 保存按钮：用 MouseDown 而不是 Click，避免 FlowLayoutPanel 自动布局在鼠标按下/抬起之间
+            // 重算位置导致 Click 事件丢失，从而需要点击两次才生效。
+            var btnSaveAppearance = new Button
+            {
+                Text = "保存外观/通知设置",
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(8, 3, 8, 3),
+                Margin = new Padding(0, 6, 12, 0)
+            };
+            btnSaveAppearance.MouseDown += (_, _) => SaveAutomationSettings();
+            appearanceRow.Controls.Add(btnSaveAppearance);
 
             // 用一个垂直 FlowLayoutPanel 包住所有行，作为 GroupBox 的唯一子控件。
             // GroupBox 的 AutoSize 对「多个 Dock=Top 子控件」高度求和会算错，
