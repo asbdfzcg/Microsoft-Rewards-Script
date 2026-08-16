@@ -57,6 +57,8 @@ namespace RewardsManager
         private Label lblTaskDetail, lblTaskTriggers;
         private TextBox txtRunTime;
         private CheckBox chkSilentWindow, chkNotify;
+        private GroupBox grpSettingsAutomation;
+        private FlowLayoutPanel vflowSettings;
 
         // 更新页
         private Label lblCurrentVer, lblLatestVer, lblPublished;
@@ -115,6 +117,7 @@ namespace RewardsManager
                     tabs.SelectedTab.PerformLayout();
                     tabs.SelectedTab.Refresh();
                     foreach (Control c in tabs.SelectedTab.Controls) c.PerformLayout();
+                    FixAutomationGroupHeight();
                 }
             };
 
@@ -172,6 +175,7 @@ namespace RewardsManager
                 RefreshTaskStatus();
                 ReconcileLocalVersion();
                 RefreshUpdateStatus();
+                FixAutomationGroupHeight();
             };
             Shown += (_, _) =>
             {
@@ -1039,18 +1043,17 @@ namespace RewardsManager
             grpStatus.Controls.Add(lblTaskDetail);
 
             // --- 设置组 ---
-            var grpSettings = new GroupBox
+            grpSettingsAutomation = new GroupBox
             {
                 Text = "计划任务设置",
                 Dock = DockStyle.Top,
-                AutoSize = true,
+                AutoSize = false,
                 Margin = new Padding(0),
                 Padding = new Padding(12, 8, 12, 12)
             };
 
             var opsRow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
                 AutoSize = true,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = true,
@@ -1090,7 +1093,6 @@ namespace RewardsManager
 
             var timeRow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
                 AutoSize = true,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
@@ -1104,7 +1106,6 @@ namespace RewardsManager
             // --- 运行外观与通知设置 ---
             var appearanceRow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
                 AutoSize = true,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
@@ -1130,32 +1131,44 @@ namespace RewardsManager
             appearanceRow.Controls.Add(chkNotify);
             appearanceRow.Controls.Add(MkButton("保存外观/通知设置", (_, _) => SaveAutomationSettings()));
 
-            // 用 TableLayoutPanel 替代多个 Dock=Top 的 FlowLayoutPanel，
-            // 解决 GroupBox AutoSize 对 Dock 子控件高度计算不足导致底部按钮被截断的问题。
-            var settingsContent = new TableLayoutPanel
+            // 用一个垂直 FlowLayoutPanel 包住所有行，作为 GroupBox 的唯一子控件。
+            // GroupBox 的 AutoSize 对「多个 Dock=Top 子控件」高度求和会算错，
+            // 改为只放一个自动高度的容器即可正确计算。
+            vflowSettings = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Top,
                 AutoSize = true,
-                ColumnCount = 1,
-                RowCount = 3,
-                Padding = Padding.Empty,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
                 Margin = Padding.Empty
             };
-            settingsContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            settingsContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            settingsContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            settingsContent.Controls.Add(appearanceRow, 0, 0);
-            settingsContent.Controls.Add(timeRow, 0, 1);
-            settingsContent.Controls.Add(opsRow, 0, 2);
+            vflowSettings.Controls.Add(appearanceRow);
+            vflowSettings.Controls.Add(timeRow);
+            vflowSettings.Controls.Add(opsRow);
 
-            grpSettings.Controls.Add(settingsContent);
+            grpSettingsAutomation.Controls.Add(vflowSettings);
 
             LoadAutomationSettings();
 
-            panel.Controls.Add(grpSettings);
+            panel.Controls.Add(grpSettingsAutomation);
             panel.Controls.Add(grpStatus);
             page.Controls.Add(panel);
             return page;
+        }
+
+        // GroupBox 的 AutoSize 对停靠子控件高度求和会算错，导致底部按钮被截断。
+        // 改为手动按内容实际高度设置 GroupBox 高度（vflow 的 AutoSize 可正确计算自身高度）。
+        private void FixAutomationGroupHeight()
+        {
+            if (grpSettingsAutomation == null || vflowSettings == null) return;
+            grpSettingsAutomation.PerformLayout();
+            int header = grpSettingsAutomation.DisplayRectangle.Y; // 标题栏高度
+            if (header <= 0) header = grpSettingsAutomation.Font.Height + 8;
+            int h = vflowSettings.Height + grpSettingsAutomation.Padding.Top + grpSettingsAutomation.Padding.Bottom + header;
+            if (h > grpSettingsAutomation.Height || grpSettingsAutomation.Height - h > 4)
+            {
+                grpSettingsAutomation.Height = h;
+            }
         }
 
         private async void RefreshTaskStatus()
