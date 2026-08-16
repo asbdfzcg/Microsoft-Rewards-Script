@@ -1130,9 +1130,25 @@ namespace RewardsManager
             appearanceRow.Controls.Add(chkNotify);
             appearanceRow.Controls.Add(MkButton("保存外观/通知设置", (_, _) => SaveAutomationSettings()));
 
-            grpSettings.Controls.Add(opsRow);
-            grpSettings.Controls.Add(timeRow);
-            grpSettings.Controls.Add(appearanceRow);
+            // 用 TableLayoutPanel 替代多个 Dock=Top 的 FlowLayoutPanel，
+            // 解决 GroupBox AutoSize 对 Dock 子控件高度计算不足导致底部按钮被截断的问题。
+            var settingsContent = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = Padding.Empty,
+                Margin = Padding.Empty
+            };
+            settingsContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            settingsContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            settingsContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            settingsContent.Controls.Add(appearanceRow, 0, 0);
+            settingsContent.Controls.Add(timeRow, 0, 1);
+            settingsContent.Controls.Add(opsRow, 0, 2);
+
+            grpSettings.Controls.Add(settingsContent);
 
             LoadAutomationSettings();
 
