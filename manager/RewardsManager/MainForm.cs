@@ -1048,17 +1048,6 @@ namespace RewardsManager
                 Padding = new Padding(12, 8, 12, 12)
             };
 
-            var hintFlow = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
-                Margin = new Padding(0, 4, 0, 0)
-            };
-            AddWrappedHint(hintFlow,
-                "说明:「注册/重建」「应用时间」「注销」会弹出 UAC 授权窗口; 计划任务包含每天定时 + 用户登录两个触发器（开机/登录补跑）。");
-
             var opsRow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
@@ -1141,22 +1130,9 @@ namespace RewardsManager
             appearanceRow.Controls.Add(chkNotify);
             appearanceRow.Controls.Add(MkButton("保存外观/通知设置", (_, _) => SaveAutomationSettings()));
 
-            var appearanceHint = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
-                Margin = new Padding(0, 0, 0, 6)
-            };
-            AddWrappedHint(appearanceHint,
-                "说明: 修改「静默窗口」后需点击「注册/重建计划任务」使其对计划任务生效；「Windows 通知」下次运行自动生效。两项设置保存在 autorun/automation-settings.json。");
-
-            grpSettings.Controls.Add(hintFlow);
             grpSettings.Controls.Add(opsRow);
             grpSettings.Controls.Add(timeRow);
             grpSettings.Controls.Add(appearanceRow);
-            grpSettings.Controls.Add(appearanceHint);
 
             LoadAutomationSettings();
 
