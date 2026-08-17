@@ -7,6 +7,15 @@ param(
     [switch]$Force
 )
 
+# 启动标记：每次被触发都先写一行到 startup.log，排查“触发了但没运行”的黑盒问题
+# （之前的故障就是脚本在早期异常退出、却无任何日志，导致无法判断到底有没有启动）
+try {
+    $startupDir = Join-Path $PSScriptRoot 'logs'
+    if (-not (Test-Path $startupDir)) { New-Item -ItemType Directory -Path $startupDir -Force | Out-Null }
+    Add-Content -Path (Join-Path $startupDir 'startup.log') `
+        -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] 启动 (Force=$Force, PID=$pid)" -Encoding UTF8
+} catch {}
+
 # 设置窗口标题（避免在 Windows Terminal 命令行中传中文标题触发 Node.js 断言失败）
 try { $Host.UI.RawUI.WindowTitle = 'Microsoft Rewards Script' } catch {}
 
@@ -154,7 +163,8 @@ try {
     # ---------- 5. 当天防重复 ----------
     $today = Get-Date -Format 'yyyy-MM-dd'
     if (-not $Force -and (Test-Path $LastRunFile)) {
-        $lastRun = (Get-Content $LastRunFile -Raw -ErrorAction SilentlyContinue).Trim()
+        $raw = Get-Content $LastRunFile -Raw -ErrorAction SilentlyContinue
+        $lastRun = if ($raw) { $raw.Trim() } else { '' }
         if ($lastRun -eq $today) {
             Write-Skip "今天（$today）已成功运行过，跳过"
             exit 0
@@ -203,60 +213,42 @@ try {
         } catch {}
     }
 
-    # 后台运行 node：实时把输出写到终端与日志，并捕获关键日志行用于 Windows 通知
-    $script:state = @{
-        RunLogPath    = $RunLog
-        NotifyMode    = $notifyMode
-        StartBuf      = [System.Collections.Generic.List[string]]::new()
-        StartNotified = $false
-    }
+    # 后台运行 node：用 Start-Process 把输出重定向到 run 日志文件。
+    # 注意：不要直接用 [System.Diagnostics.Process] 的 OutputDataReceived 事件——
+    # 计划任务以 Highest 权限运行时，系统可能将脚本置于 ConstrainedLanguage 模式，
+    # 此时 New-Object 出来的 Process 对象无法访问 OutputDataReceived 等成员，会抛
+    # “找不到属性 OutputDataReceived”导致整脚本中止。Start-Process 由 PowerShell 引擎
+    # 内部执行，不受脚本的 ConstrainedLanguage 限制，重定向可靠。
+    $nodeArgs = "--no-warnings `"$(Join-Path $ProjectDir 'dist\index.js')`""
+    # 注意：RedirectStandardOutput 与 RedirectStandardError 不能指向同一文件，
+    # 否则 PowerShell 会报“RedirectStandardOutput 和 RedirectStandardError 相同”。
+    # 因此 stderr 单独写入 .err 文件，进程结束后合并进主日志，便于统一解析。
+    $errLog = $RunLog + '.err'
+    # 异步启动（不带 -Wait）：进程在后台运行，父脚本继续往下走，
+    # 这样“启动通知”能在运行初期实时弹出；随后用 WaitForExit 保活，
+    # 避免父脚本提前退出误杀后台 node 进程。
+    $proc = Start-Process -FilePath $nodeExe -ArgumentList $nodeArgs -WorkingDirectory $ProjectDir `
+        -NoNewWindow -RedirectStandardOutput $RunLog -RedirectStandardError $errLog `
+        -PassThru -ErrorAction Stop
 
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $nodeExe
-    $psi.Arguments = "--no-warnings `"$(Join-Path $ProjectDir 'dist\index.js')`""
-    $psi.WorkingDirectory = $ProjectDir
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.CreateNoWindow = $true
-    $proc = New-Object System.Diagnostics.Process
-    $proc.StartInfo = $psi
-
-    $proc.OutputDataReceived += {
-        param($s, $e)
-        if ($null -ne $e.Data) {
-            $line = $e.Data
-            [Console]::Out.WriteLine($line)
-            Add-Content -Path $script:state.RunLogPath -Value $line -Encoding UTF8
-            # 捕获启动日志行（用于启动时通知）
-            if ($line -match '\[运行开始\]' -or $line -match '\[账户开始\]') { $script:state.StartBuf.Add($line) }
-            if (-not $script:state.StartNotified -and $line -match '\[运行开始\]') {
-                if ($script:state.NotifyMode -eq 'both') {
-                    Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($script:state.StartBuf -join "`n")
-                    $script:state.StartNotified = $true
-                }
-            }
+    # 启动通知（延迟读取日志，兼容无法实时捕获输出行的场景）
+    if ($notifyMode -eq 'both') {
+        Start-Sleep -Seconds 3
+        $startLines = @()
+        foreach ($l in (Get-Content -Path $RunLog -Encoding UTF8 -ErrorAction SilentlyContinue)) {
+            if ($l -match '\[运行开始\]' -or $l -match '\[账户开始\]') { $startLines += $l }
+        }
+        if ($startLines.Count -gt 0) {
+            Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($startLines -join "`n")
         }
     }
-    $proc.ErrorDataReceived += {
-        param($s, $e)
-        if ($null -ne $e.Data) {
-            $line = $e.Data
-            [Console]::Error.WriteLine($line)
-            Add-Content -Path $script:state.RunLogPath -Value $line -Encoding UTF8
-        }
-    }
-    $proc.Start() | Out-Null
-    $proc.BeginOutputReadLine()
-    $proc.BeginErrorReadLine()
+
+    # 等待 node 进程结束（保活，确保后台进程不被父脚本退出误杀）
     $proc.WaitForExit()
     $exitCode = $proc.ExitCode
-    # 稍等异步日志读取线程把最后几行刷入 RunLog，避免收尾行漏抓
-    Start-Sleep -Seconds 1
-
-    # 启动通知兜底：日志中已有运行开始行但事件未触发时，在结束前补发
-    if ($notifyMode -eq 'both' -and -not $script:state.StartNotified -and $script:state.StartBuf.Count -gt 0) {
-        Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($script:state.StartBuf -join "`n")
+    if (Test-Path $errLog) {
+        try { Add-Content -Path $RunLog -Value (Get-Content -Path $errLog -Raw -Encoding UTF8) -Encoding UTF8 } catch {}
+        Remove-Item $errLog -Force -ErrorAction SilentlyContinue
     }
 
     # 完成通知（重新解析日志，确保收尾行拿全）
@@ -280,6 +272,11 @@ try {
         Write-Err "运行失败：退出码=$exitCode，获得积分为0=$zeroPoints（详见 $RunLog）"
         exit 1
     }
+}
+catch {
+    # 主体 try 内任何未捕获异常都会落到这里，写入 error.log 便于排查“黑盒退出”问题
+    try { Write-Err ("未捕获异常导致脚本中止: " + $_.Exception.Message + "`n" + $_.ScriptStackTrace) } catch {}
+    exit 1
 }
 finally {
     Remove-Item $LockFile -Force -ErrorAction SilentlyContinue
