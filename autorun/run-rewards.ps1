@@ -220,9 +220,15 @@ try {
     # 运行 node：区分手动/自动场景。
     # 手动运行（-Force）时直接在前台运行，输出实时显示在终端，同时写入日志文件；
     # 计划任务运行时重定向到日志文件，避免桌面弹窗，且不受 ConstrainedLanguage 限制。
-    # 用数组而非拼接字符串：手动模式用 `& $nodeExe @nodeArgs` 时 PowerShell 才能把每个元素
-    # 当作独立参数；若用拼接字符串，`&` 会把整串当成单个参数，导致 node 报 bad option。
-    $nodeArgs = @('--no-warnings', (Join-Path $ProjectDir 'dist\index.js'))
+    # 脚本路径（可能含空格）。
+    $scriptPath = Join-Path $ProjectDir 'dist\index.js'
+    # 手动模式用数组 splat：`& $nodeExe @nodeArgs` 时 PowerShell 才会把每个元素当成独立参数；
+    # 若用拼接字符串，`&` 会把整串当成单个参数，导致 node 报 bad option。
+    $nodeArgs = @('--no-warnings', $scriptPath)
+    # 自动模式用 Start-Process -ArgumentList：数组元素含空格时不会被自动加引号，
+    # 路径会在空格处被截断（Cannot find module '...Microsoft'）。因此单独构造一个
+    # 带引号包裹路径的字符串参数——这是 8/17、8/18 成功运行时的写法。
+    $nodeArgString = "--no-warnings `"$scriptPath`""
     $errLog = $RunLog + '.err'
     if ($Force) {
         # 手动模式：前台运行 + Tee 到日志。
@@ -257,7 +263,7 @@ try {
         # 异步启动（不带 -Wait）：进程在后台运行，父脚本继续往下走，
         # 这样“启动通知”能在运行初期实时弹出；随后用 WaitForExit 保活，
         # 避免父脚本提前退出误杀后台 node 进程。
-        $proc = Start-Process -FilePath $nodeExe -ArgumentList $nodeArgs -WorkingDirectory $ProjectDir `
+        $proc = Start-Process -FilePath $nodeExe -ArgumentList $nodeArgString -WorkingDirectory $ProjectDir `
             -NoNewWindow -RedirectStandardOutput $RunLog -RedirectStandardError $errLog `
             -PassThru -ErrorAction Stop
 
