@@ -220,7 +220,9 @@ try {
     # 运行 node：区分手动/自动场景。
     # 手动运行（-Force）时直接在前台运行，输出实时显示在终端，同时写入日志文件；
     # 计划任务运行时重定向到日志文件，避免桌面弹窗，且不受 ConstrainedLanguage 限制。
-    $nodeArgs = "--no-warnings `"$(Join-Path $ProjectDir 'dist\index.js')`""
+    # 用数组而非拼接字符串：手动模式用 `& $nodeExe @nodeArgs` 时 PowerShell 才能把每个元素
+    # 当作独立参数；若用拼接字符串，`&` 会把整串当成单个参数，导致 node 报 bad option。
+    $nodeArgs = @('--no-warnings', (Join-Path $ProjectDir 'dist\index.js'))
     $errLog = $RunLog + '.err'
     if ($Force) {
         # 手动模式：前台运行 + Tee 到日志。
@@ -232,7 +234,7 @@ try {
         }
         $writer = [System.IO.StreamWriter]::new($RunLog, $false, [System.Text.Encoding]::UTF8)
         try {
-            & $nodeExe $nodeArgs 2>&1 | ForEach-Object {
+            & $nodeExe @nodeArgs 2>&1 | ForEach-Object {
                 $line = "$_"
                 $writer.WriteLine($line)
                 $writer.Flush()
