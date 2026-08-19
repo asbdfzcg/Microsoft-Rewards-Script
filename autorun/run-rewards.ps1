@@ -124,16 +124,20 @@ function Send-Toast([string]$title, [string]$message) {
     }
 }
 
-# ---------- 1. 等待 1 秒后最小化 Windows Terminal 窗口 ----------
-Start-Sleep -Seconds 1
-try {
-    Add-Type -Namespace Win32 -Name WindowApi -MemberDefinition @'
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        public static extern bool ShowWindowAsync(System.IntPtr hWnd, int nCmdShow);
+# ---------- 1. 窗口可见性 ----------
+# 手动运行时（-Force）保持窗口在前台，方便查看实时输出；
+# 计划任务/静默运行时最小化 Windows Terminal，避免占用桌面。
+if (-not $Force) {
+    Start-Sleep -Seconds 1
+    try {
+        Add-Type -Namespace Win32 -Name WindowApi -MemberDefinition @'
+            [System.Runtime.InteropServices.DllImport("user32.dll")]
+            public static extern bool ShowWindowAsync(System.IntPtr hWnd, int nCmdShow);
 '@
-    $wtProc = Get-Process | Where-Object { $_.ProcessName -match 'WindowsTerminal|wt' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-    if ($wtProc) { [Win32.WindowApi]::ShowWindowAsync($wtProc.MainWindowHandle, 6) | Out-Null } # 6 = SW_MINIMIZE
-} catch {}
+        $wtProc = Get-Process | Where-Object { $_.ProcessName -match 'WindowsTerminal|wt' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+        if ($wtProc) { [Win32.WindowApi]::ShowWindowAsync($wtProc.MainWindowHandle, 6) | Out-Null } # 6 = SW_MINIMIZE
+    } catch {}
+}
 
 # ---------- 2. 文件锁防双实例 ----------
 if (Test-Path $LockFile) {
@@ -213,42 +217,67 @@ try {
         } catch {}
     }
 
-    # 后台运行 node：用 Start-Process 把输出重定向到 run 日志文件。
-    # 注意：不要直接用 [System.Diagnostics.Process] 的 OutputDataReceived 事件——
-    # 计划任务以 Highest 权限运行时，系统可能将脚本置于 ConstrainedLanguage 模式，
-    # 此时 New-Object 出来的 Process 对象无法访问 OutputDataReceived 等成员，会抛
-    # “找不到属性 OutputDataReceived”导致整脚本中止。Start-Process 由 PowerShell 引擎
-    # 内部执行，不受脚本的 ConstrainedLanguage 限制，重定向可靠。
+    # 运行 node：区分手动/自动场景。
+    # 手动运行（-Force）时直接在前台运行，输出实时显示在终端，同时写入日志文件；
+    # 计划任务运行时重定向到日志文件，避免桌面弹窗，且不受 ConstrainedLanguage 限制。
     $nodeArgs = "--no-warnings `"$(Join-Path $ProjectDir 'dist\index.js')`""
-    # 注意：RedirectStandardOutput 与 RedirectStandardError 不能指向同一文件，
-    # 否则 PowerShell 会报“RedirectStandardOutput 和 RedirectStandardError 相同”。
-    # 因此 stderr 单独写入 .err 文件，进程结束后合并进主日志，便于统一解析。
     $errLog = $RunLog + '.err'
-    # 异步启动（不带 -Wait）：进程在后台运行，父脚本继续往下走，
-    # 这样“启动通知”能在运行初期实时弹出；随后用 WaitForExit 保活，
-    # 避免父脚本提前退出误杀后台 node 进程。
-    $proc = Start-Process -FilePath $nodeExe -ArgumentList $nodeArgs -WorkingDirectory $ProjectDir `
-        -NoNewWindow -RedirectStandardOutput $RunLog -RedirectStandardError $errLog `
-        -PassThru -ErrorAction Stop
-
-    # 启动通知（延迟读取日志，兼容无法实时捕获输出行的场景）
-    if ($notifyMode -eq 'both') {
-        Start-Sleep -Seconds 3
-        $startLines = @()
-        foreach ($l in (Get-Content -Path $RunLog -Encoding UTF8 -ErrorAction SilentlyContinue)) {
-            if ($l -match '\[运行开始\]' -or $l -match '\[账户开始\]') { $startLines += $l }
+    if ($Force) {
+        # 手动模式：前台运行 + Tee 到日志。
+        Write-Host "正在启动 Microsoft Rewards Script（PID=$pid）..." -ForegroundColor Cyan
+        Write-Host "日志同时写入: $RunLog" -ForegroundColor DarkGray
+        Write-Host ""
+        if ($notifyMode -eq 'both') {
+            Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message "手动运行已开始，PID=$pid"
         }
-        if ($startLines.Count -gt 0) {
-            Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($startLines -join "`n")
+        $writer = [System.IO.StreamWriter]::new($RunLog, $false, [System.Text.Encoding]::UTF8)
+        try {
+            & $nodeExe $nodeArgs 2>&1 | ForEach-Object {
+                $line = "$_"
+                $writer.WriteLine($line)
+                $writer.Flush()
+                Write-Host $line
+            }
+        } finally {
+            $writer.Close()
         }
-    }
+        $exitCode = $LASTEXITCODE
+    } else {
+        # 自动模式：用 Start-Process 把输出重定向到 run 日志文件。
+        # 注意：不要直接用 [System.Diagnostics.Process] 的 OutputDataReceived 事件——
+        # 计划任务以 Highest 权限运行时，系统可能将脚本置于 ConstrainedLanguage 模式，
+        # 此时 New-Object 出来的 Process 对象无法访问 OutputDataReceived 等成员，会抛
+        # “找不到属性 OutputDataReceived”导致整脚本中止。Start-Process 由 PowerShell 引擎
+        # 内部执行，不受脚本的 ConstrainedLanguage 限制，重定向可靠。
+        # 注意：RedirectStandardOutput 与 RedirectStandardError 不能指向同一文件，
+        # 否则 PowerShell 会报“RedirectStandardOutput 和 RedirectStandardError 相同”。
+        # 因此 stderr 单独写入 .err 文件，进程结束后合并进主日志，便于统一解析。
+        # 异步启动（不带 -Wait）：进程在后台运行，父脚本继续往下走，
+        # 这样“启动通知”能在运行初期实时弹出；随后用 WaitForExit 保活，
+        # 避免父脚本提前退出误杀后台 node 进程。
+        $proc = Start-Process -FilePath $nodeExe -ArgumentList $nodeArgs -WorkingDirectory $ProjectDir `
+            -NoNewWindow -RedirectStandardOutput $RunLog -RedirectStandardError $errLog `
+            -PassThru -ErrorAction Stop
 
-    # 等待 node 进程结束（保活，确保后台进程不被父脚本退出误杀）
-    $proc.WaitForExit()
-    $exitCode = $proc.ExitCode
-    if (Test-Path $errLog) {
-        try { Add-Content -Path $RunLog -Value (Get-Content -Path $errLog -Raw -Encoding UTF8) -Encoding UTF8 } catch {}
-        Remove-Item $errLog -Force -ErrorAction SilentlyContinue
+        # 启动通知（延迟读取日志，兼容无法实时捕获输出行的场景）
+        if ($notifyMode -eq 'both') {
+            Start-Sleep -Seconds 3
+            $startLines = @()
+            foreach ($l in (Get-Content -Path $RunLog -Encoding UTF8 -ErrorAction SilentlyContinue)) {
+                if ($l -match '\[运行开始\]' -or $l -match '\[账户开始\]') { $startLines += $l }
+            }
+            if ($startLines.Count -gt 0) {
+                Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($startLines -join "`n")
+            }
+        }
+
+        # 等待 node 进程结束（保活，确保后台进程不被父脚本退出误杀）
+        $proc.WaitForExit()
+        $exitCode = $proc.ExitCode
+        if (Test-Path $errLog) {
+            try { Add-Content -Path $RunLog -Value (Get-Content -Path $errLog -Raw -Encoding UTF8) -Encoding UTF8 } catch {}
+            Remove-Item $errLog -Force -ErrorAction SilentlyContinue
+        }
     }
 
     # 完成通知（重新解析日志，确保收尾行拿全）
