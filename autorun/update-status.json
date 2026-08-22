@@ -1,0 +1,11 @@
+{
+  "currentVersion": "4.3.0",
+  "latestVersion": "4.3.0",
+  "updateAvailable": false,
+  "skippedVersion": null,
+  "changelog": "# Microsoft Rewards Script v4.3.0\r\n\r\n本版本基于 [TheNetsky/Microsoft-Rewards-Script](https://github.com/TheNetsky/Microsoft-Rewards-Script) 并包含本 fork 的 Windows 图形化管理程序（RewardsManager）与 autorun 一键工具。\r\n\r\n## 更新内容\r\n\r\n- **同步上游 4.3.0 登录与活动修复**：\r\n  - 登录流程重写：修复邮箱确认页、无密码登录、代理相关登录问题。\r\n  - 视觉搜索激活修复，并支持「促销类」视觉搜索。\r\n  - 修复 Turbopack 解析并恢复领取奖励积分。\r\n  - 支持 Bing 子域名，新增「恢复 Edge 浏览」能力。\r\n- **实验性功能**：新增实验性的 Edge 浏览器内浏览活动。\r\n- **管理程序与 autorun 工具（延续自 4.2.3）**：\r\n  - 主界面状态条显示「今日获得」与「当前积分」。\r\n  - 静默窗口模式与 Windows 通知。\r\n  - 更新日志链接可点击。\r\n  - 适配 4.3.0 新日志格式，积分状态栏与运行成功判定同步更新。\r\n\r\n**Full Changelog**: https://github.com/asbdfzcg/Microsoft-Rewards-Script/compare/v4.2.3...v4.3.0\r\n",
+  "releaseUrl": "https://github.com/asbdfzcg/Microsoft-Rewards-Script/releases/tag/v4.3.0",
+  "publishedAt": "2026-08-22T20:45:00Z",
+  "checkedAt": "2026-08-22T20:45:00.000Z",
+  "error": null
+}

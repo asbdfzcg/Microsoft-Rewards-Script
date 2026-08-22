@@ -10,3 +10,19 @@ note
 .playwright-chromium-installed
 .stfolder/
 .env
+
+# 本地构建产物与运行产物（不纳入版本控制）
+bin/
+obj/
+autorun/logs/
+autorun/automation-settings.json
+autorun/geometry.txt
+
+# 项目本地记忆与发布压缩包（不纳入版本控制）
+.workbuddy/
+release/*.zip
+
+# 运行产物与 IDE 缓存（不纳入版本控制）
+autorun/.last-run-date
+autorun/*.old
+manager/RewardsManager/.vs/
