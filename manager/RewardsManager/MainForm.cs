@@ -16,7 +16,7 @@ using System.Diagnostics;
 
 namespace RewardsManager
 {
-    public class MainForm : Form
+    public class MainForm : Form, IMessageFilter
     {
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern int SendMessage(IntPtr hWnd, int wMsg, IntPtr wParam, IntPtr lParam);
@@ -39,8 +39,13 @@ namespace RewardsManager
         // 日志页
         private ListBox lstLogs;
         private RichTextBox txtLogView;
-        private SplitContainer logSplit;
+        private TableLayoutPanel logSplit;
         private TableLayoutPanel logLayout;
+        private Label lblTodayPoints;    // 今日获得
+        private Label lblCurrentPoints;  // 当前积分
+        private ComboBox cmbAccount;     // 选择账号
+        private FlowLayoutPanel logLeftFlow;  // 工具栏左侧按钮组(刷新/打开目录/清理日志)，用于账号框右对齐
+        private TableLayoutPanel statRowPanel; // 顶部状态条(账号/今日获得/当前积分)，用于对齐刷新
 
         // 配置页
         private CheckBox chkHeadless, chkDailySet, chkMorePromotions, chkPunchCards, chkDesktopSearch,
@@ -50,7 +55,8 @@ namespace RewardsManager
         private Panel configScrollPanel;
         private TableLayoutPanel configRoot;
         private readonly List<EnvEntry> envEntries = new List<EnvEntry>();
-        private bool _precreating;   // 启动期预渲染配置页时为 true，跳过 SelectedIndexChanged 的刷新逻辑
+        private bool _precreating;          // 启动期预渲染配置页时为 true，跳过 SelectedIndexChanged 的刷新逻辑
+        private bool _configPrecreated;     // 配置页句柄已创建过，避免重复预创建/闪烁
 
         // 自动化页
         private StatusGroupBox grpStatus;
@@ -64,6 +70,10 @@ namespace RewardsManager
         private Label lblCurrentVer, lblLatestVer, lblPublished;
         private TextBox lblUpdateState;
         private RichTextBox txtChangelog;
+        private List<(int start, int end, string url)> _changelogUrls = new List<(int, int, string)>();
+        private bool _cursorOnUrl;
+        private Point _changelogDownPos = Point.Empty;
+        private bool _changelogDownOnUrl;
         private Button btnUpdate, btnSkip;
         private const string ProjectRepoUrl = "https://github.com/asbdfzcg/Microsoft-Rewards-Script";
 
@@ -73,16 +83,16 @@ namespace RewardsManager
             Text = "Microsoft Rewards Script 管理程序";
             Width = 1000;
             Height = 720;
-            MinimumSize = new Size(900, 600);
-            StartPosition = FormStartPosition.CenterScreen;
+            MinimumSize = new Size(1000, 720);
+            // 不用 CenterScreen：DPI 缩放下 CenterScreen 会先用缩放前尺寸算中心点，缩放后窗口变大造成一次位置跳变（视觉闪一下）。
+            // 改为 Manual，在 Shown 的 BeginInvoke 里用已缩放的正确尺寸计算居中位置，一次性设置，无跳变。
+            StartPosition = FormStartPosition.Manual;
+            Location = new Point(-100000, -100000); // 先移出屏幕，避免首帧在错误位置闪现
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = new Font("Microsoft YaHei UI", 9F);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             verifyMode = verify;
             verifySwitchMode = verifySwitch;
-            // 启动期先不可见，避免控件预创建/首次绘制时的白屏闪烁；
-            // Shown 中完成预渲染后再恢复 Opacity=1
-            this.Opacity = 0;
             if (verifyMode || verifySwitchMode) { this.ShowInTaskbar = false; }
 
             // 注意：不要加 ControlStyles.AllPaintingInWmPaint。该样式会抑制 WM_ERASEBKGND，
@@ -101,6 +111,7 @@ namespace RewardsManager
             };
             SetDoubleBuffered(tabs);
             SetDoubleBuffered(this);
+            // 注：logSplit 在 BuildLogsTab 中创建，双缓冲在 BuildLogsTab 末尾设置。
             // 启用 TabControl 原生双缓冲(TCS_EX_DOUBLEBUFFER)，进一步消除切页时的普通闪烁
             tabs.HandleCreated += (_, _) =>
             {
@@ -133,6 +144,8 @@ namespace RewardsManager
             Load += (_, _) =>
             {
                 RefreshLogs();
+                LoadAccountList();
+                RefreshPointsSummary();
                 LoadConfig();
                 LoadEnv();
                 if (configScrollPanel != null)
@@ -144,24 +157,6 @@ namespace RewardsManager
                     if (configRoot != null)
                         configScrollPanel.AutoScrollMinSize = new Size(0, configRoot.Height + configScrollPanel.Padding.Vertical);
                 }
-                // 配置页首次绘制较重（.env 每行一个 CheckBox+Label+TextBox，加上十几个自定义 CheckBox
-                // 的句柄创建与布局）。在窗体尚不可见的 Load 阶段先创建全部子控件句柄并布局一次，
-                // 把这部分成本前置到启动期；真正的“首次像素绘制”在 Shown 中以 Opacity=0 不可见方式强制完成。
-                try
-                {
-                    _precreating = true;
-                    int cfgPrev = tabs.SelectedIndex;
-                    var sw = Stopwatch.StartNew();
-                    tabs.SelectedIndex = 1;
-                    tabs.TabPages[1].PerformLayout();
-                    configScrollPanel?.CreateControl();           // 递归创建全部子控件句柄
-                    configScrollPanel?.PerformLayout();
-                    sw.Stop();
-                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "precreate.txt"), $"precreate_ms={sw.ElapsedMilliseconds}\n"); } catch { }
-                    tabs.SelectedIndex = cfgPrev;
-                }
-                catch { }
-                finally { _precreating = false; }
                 // 测试/自检用：--setgap N 设定按钮带上下对称留白(px)（调好间距后此参数可不传）
                 bandGap = setGap >= 0 ? Math.Max(0, Math.Min(40, setGap)) : bandGap;
                 if (logToolbar != null)
@@ -172,32 +167,40 @@ namespace RewardsManager
                     if (logLayout != null && logLayout.RowStyles.Count > 1)
                         logLayout.RowStyles[1].Height = bandGap;
                 }
-                RefreshTaskStatus();
-                ReconcileLocalVersion();
                 RefreshUpdateStatus();
                 FixAutomationGroupHeight();
+                // 以下两项较重（配置页句柄预创建 + 版本对账写文件），延后到首绘完成后，
+                // 避免阻塞窗体首次出现；二者都不影响用户立即看到/操作系统。
+                this.BeginInvoke(new Action(() =>
+                {
+                    PrecreateConfigTab();
+                    ReconcileLocalVersion();
+                }));
+                // 计划任务状态查询要冷启动 powershell.exe（CLR 启动 0.5~1.5s），放到后台线程，
+                // 不阻塞首绘；其内部已是 async，这里仅触发，不 await。
+                RefreshTaskStatus();
             };
             Shown += (_, _) =>
             {
-                // 句柄创建后再设置分割位置，避免 DPI 缩放生效前被覆盖
-                try { logSplit.SplitterDistance = Math.Min(300, logSplit.Width / 3); } catch { }
-                tabs.SelectedTab?.PerformLayout();
-                tabs.SelectedTab?.Refresh();
-                // 强制配置页完成“首次像素绘制”：用 Opacity=0 让这次绘制对用户不可见，
-                // 但窗口已 Visible，WM_PAINT 会真正执行。这样之后每次点击切到配置页都是已缓存的重绘，
-                // 不再有 ~1s 首绘卡顿与半透明重影。
-                try
+                // 日志页左右宽度由 TableLayoutPanel 的 Percent 列样式自动布局，首帧即正确，无 DPI 缩放问题。
+                // 用 BeginInvoke 把"居中定位"推到首绘之后：此时 this.Width/Height 已是 DPI 缩放后的正确值，
+                // 用 Screen.WorkingArea 计算居中位置一次性设置，避免 CenterScreen 的位置跳变闪屏。
+                this.BeginInvoke(new Action(() =>
                 {
-                    int cfgPrev = tabs.SelectedIndex;
-                    tabs.SelectedIndex = 1;
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(20);
-                    Application.DoEvents();
-                    tabs.SelectedIndex = cfgPrev;
-                    Application.DoEvents();
-                }
-                catch { }
-                finally { this.Opacity = 1; }
+                    try
+                    {
+                        var wa = Screen.PrimaryScreen.WorkingArea;
+                        int x = Math.Max(wa.Left, (wa.Width - this.Width) / 2 + wa.Left);
+                        int y = Math.Max(wa.Top, (wa.Height - this.Height) / 2 + wa.Top);
+                        this.Location = new Point(x, y);
+                    }
+                    catch { }
+                    // 账号下拉框右缘对齐「清理日志」按钮右缘（几何坐标法，幂等；
+                    // 真正测量在 toolbar 完成布局后由 LayoutCompleted 触发，这里仅兜底）。
+                    try { AlignAccountBox(); } catch { }
+                }));
+                // 注意：不再在此处做“Opacity=0 强制绘制配置页”，也不做多余 PerformLayout/Refresh（避免额外重绘闪屏）。
+                // 配置页句柄创建已移至 Load 的 BeginInvoke(PrecreateConfigTab) 在首绘后后台完成。
                 // 自检模式：把真实像素几何写入 geometry.txt 后退出（无需肉眼看截图）
                 if (verifyMode)
                 {
@@ -241,19 +244,83 @@ namespace RewardsManager
                 Padding = new Padding(0, bandGap, 0, 0)
             };
 
-            // 垂直布局容器：工具栏(自动高) / 固定间隔(bandGap) / 日志区(填充)
+            // 垂直布局容器：状态条(自动高) / 工具栏(自动高) / 固定间隔(bandGap) / 日志区(填充)
             // 用显式间隔行保证“按钮上方间距 == 按钮下方间距”，避免 Dock=Fill 控件边距不生效的坑
             var logLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty
             };
-            logLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            logLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, bandGap));
-            logLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            logLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // 0: 状态条
+            logLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // 1: 工具栏
+            logLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, bandGap)); // 2: 间隔
+            logLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));      // 3: 日志区
+
+            // 顶部状态条：选择账号(左) / 今日获得 + 当前积分(右对齐，单行)
+            // 数据源为最近一次成功运行的 run_*.log [运行结束] 行
+            var statRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = Padding.Empty,
+                Padding = new Padding(8, bandGap, 8, 0),
+                ColumnCount = 3,
+                RowCount = 1
+            };
+            statRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // 0: 账号(标签+下拉)
+            statRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));  // 1: 弹簧
+            statRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // 2: 今日获得 + 当前积分
+
+            var accountCell = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Margin = Padding.Empty
+            };
+            accountCell.Controls.Add(new Label
+            {
+                Text = "账号:",
+                AutoSize = true,
+                Margin = new Padding(0, 0, 4, 0),
+                BackColor = SystemColors.Control,
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            cmbAccount = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Microsoft YaHei UI", 9F),
+                Width = 120,
+                Margin = new Padding(0, 0, 0, 0),
+                FlatStyle = FlatStyle.System
+            };
+            cmbAccount.SelectedIndexChanged += (_, _) => RefreshPointsSummary();
+            accountCell.Controls.Add(cmbAccount);
+            statRow.Controls.Add(accountCell, 0, 0);
+
+            var pointsCell = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Margin = Padding.Empty,
+                Anchor = AnchorStyles.Right
+            };
+            pointsCell.Controls.Add(MkStatLabel("今日获得:"));
+            lblTodayPoints = MkStatLabel("—");
+            pointsCell.Controls.Add(lblTodayPoints);
+            pointsCell.Controls.Add(new Label { Width = 28, Margin = Padding.Empty, BackColor = SystemColors.Control });
+            pointsCell.Controls.Add(MkStatLabel("当前积分:"));
+            lblCurrentPoints = MkStatLabel("—");
+            pointsCell.Controls.Add(lblCurrentPoints);
+            statRow.Controls.Add(pointsCell, 2, 0);
+            statRowPanel = statRow;
 
             var toolbar = new TableLayoutPanel
             {
@@ -286,6 +353,10 @@ namespace RewardsManager
             leftFlow.Controls.Add(btnRefresh);
             leftFlow.Controls.Add(btnOpenDir);
             leftFlow.Controls.Add(btnCleanLogs);
+            logLeftFlow = leftFlow;
+            // leftFlow(AutoSize) 尺寸在按钮布局完成后由 SizeChanged 定稿；此时再对齐账号框，
+            // 避免 Shown 的 BeginInvoke 测量过早导致宽度停在初始值。AlignAccountBox 幂等。
+            logLeftFlow.SizeChanged += (_, _) => { try { AlignAccountBox(); } catch { } };
 
             var rightFlow = new FlowLayoutPanel
             {
@@ -304,14 +375,22 @@ namespace RewardsManager
             logToolbar = toolbar;
             btnRefreshLogs = btnRefresh;
 
-            logSplit = new SplitContainer
+            // 用 TableLayoutPanel 两列（Percent）替代 SplitContainer，避免 AutoScaleMode=Dpi 下
+            // SplitterDistance 被缩放引擎按未定宽度算错导致左侧瞬间变窄/闪烁。
+            logSplit = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 Margin = Padding.Empty,
-                BorderStyle = BorderStyle.None,
-                FixedPanel = FixedPanel.Panel1,
-                SplitterDistance = 300
+                Padding = Padding.Empty,
+                ColumnCount = 3,
+                RowCount = 1,
+                BackColor = SystemColors.Control
             };
+            logSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32f));   // 左：日志列表
+            logSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 4f));   // 中：分割条
+            logSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 68f));   // 右：日志内容
+            logSplit.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            SetDoubleBuffered(logSplit);
             lstLogs = new ListBox
             {
                 Dock = DockStyle.Fill,
@@ -330,14 +409,21 @@ namespace RewardsManager
                 ShowSelectionMargin = false,
                 BackColor = Color.White
             };
+            var splitterBar = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = SystemColors.ControlDark
+            };
             lstLogs.SelectedIndexChanged += (_, _) => LoadSelectedLog();
-            logSplit.Panel1.Controls.Add(lstLogs);
-            logSplit.Panel2.Controls.Add(txtLogView);
+            logSplit.Controls.Add(lstLogs, 0, 0);
+            logSplit.Controls.Add(splitterBar, 1, 0);
+            logSplit.Controls.Add(txtLogView, 2, 0);
 
             this.logLayout = logLayout;
-            logLayout.Controls.Add(toolbar, 0, 0);
-            // 第 1 行为空的固定间隔行(bandGap)，提供“按钮下方间距”
-            logLayout.Controls.Add(logSplit, 0, 2);
+            logLayout.Controls.Add(statRow, 0, 0);
+            logLayout.Controls.Add(toolbar, 0, 1);
+            // 第 2 行为空的固定间隔行(bandGap)，提供“按钮下方间距”
+            logLayout.Controls.Add(logSplit, 0, 3);
             page.Controls.Add(logLayout);
             return page;
         }
@@ -351,8 +437,125 @@ namespace RewardsManager
             foreach (var f in files)
                 lstLogs.Items.Add($"{f.Name}  ({f.Length / 1024.0:0.0} KB, {f.LastWriteTime:MM-dd HH:mm})");
             if (lstLogs.Items.Count > 0) lstLogs.SelectedIndex = 0;
+            RefreshPointsSummary();
         }
 
+        // 从 .env 解析所有 ACCOUNT_N_EMAIL，取 email 本地部分（@ 之前）作为账号标签填入下拉框。
+        // 标签与运行日志 [运行结束] 行的账号标识保持一致，便于按账号过滤积分。
+        private void LoadAccountList()
+        {
+            if (cmbAccount == null) return;
+            var accounts = new List<string>();
+            try
+            {
+                string envPath = ProjectPaths.EnvFile;
+                if (File.Exists(envPath))
+                {
+                    foreach (var raw in File.ReadAllLines(envPath))
+                    {
+                        var lineStr = raw.Trim();
+                        var m = System.Text.RegularExpressions.Regex.Match(lineStr, @"^ACCOUNT_([1-9]\d*)_EMAIL\s*=\s*(.+)$");
+                        if (!m.Success) continue;
+                        string email = m.Groups[2].Value.Trim().Trim('"', '\'');
+                        if (string.IsNullOrEmpty(email)) continue;
+                        // 下拉显示完整邮箱；日志里的账号标识是 email 本地部分（@ 之前），
+                        // 故匹配时用本地部分，显示用完整 email。
+                        if (!accounts.Contains(email, StringComparer.OrdinalIgnoreCase))
+                            accounts.Add(email);
+                    }
+                }
+            }
+            catch { }
+            cmbAccount.Items.Clear();
+            if (accounts.Count == 0)
+                cmbAccount.Items.Add("(无账号)");
+            else
+                foreach (var a in accounts) cmbAccount.Items.Add(a);
+            cmbAccount.SelectedIndex = 0;
+        }
+
+        // 从最近一次成功运行的 run_*.log 的 [运行结束] 行解析「今日获得 / 当前积分」
+        // 仅取与当前下拉框选中账号匹配的行（日志行第二个中括号为账号标识，即 email 本地部分）
+        private void RefreshPointsSummary()
+        {
+            if (lblTodayPoints == null || lblCurrentPoints == null) return;
+            string selEmail = cmbAccount != null && cmbAccount.SelectedItem != null
+                ? cmbAccount.SelectedItem.ToString() : null;
+            // 日志行账号标识是 email 本地部分（@ 之前），取出用于匹配
+            string selAccount = null;
+            if (selEmail != null)
+            {
+                int at = selEmail.IndexOf('@');
+                selAccount = at > 0 ? selEmail.Substring(0, at) : selEmail;
+            }
+            int today = -1, cur = -1;
+            try
+            {
+                if (Directory.Exists(ProjectPaths.LogsDir))
+                {
+                    var runLogs = new DirectoryInfo(ProjectPaths.LogsDir).GetFiles("run_*.log")
+                        .OrderByDescending(f => f.Name).ToArray();   // 文件名含时间戳，天然有序
+                    foreach (var f in runLogs)
+                    {
+                        string line = null;
+                        var lines = File.ReadAllLines(f.FullName);
+                        for (int i = lines.Length - 1; i >= 0; i--)
+                        {
+                            if (lines[i].Contains("[运行结束]")) { line = lines[i]; break; }
+                        }
+                        if (line == null) continue;
+                        // 账号过滤：日志行形如 "[时间] [账号标识] [级别] ..."，取第二个中括号内容
+                        if (selAccount != null)
+                        {
+                            var mAcc = System.Text.RegularExpressions.Regex.Match(line, @"^\[[^\]]*\] \[([^\]]*)\]");
+                            if (mAcc.Success && !string.Equals(mAcc.Groups[1].Value, selAccount, StringComparison.OrdinalIgnoreCase))
+                                continue;   // 非当前选中账号，跳过
+                        }
+                        var mT = System.Text.RegularExpressions.Regex.Match(line, @"获得积分=(\d+)");
+                        var mB = System.Text.RegularExpressions.Regex.Match(line, @"当前余额=(\d+)");
+                        if (mT.Success && mB.Success)
+                        {
+                            int t = int.Parse(mT.Groups[1].Value);
+                            int b = int.Parse(mB.Groups[1].Value);
+                            cur = b;
+                            if (t > 0) { today = t; break; }   // 优先取非 0 的最新一次
+                            if (today < 0) today = t;            // 全为 0 时退化为最后一条
+                        }
+                    }
+                }
+            }
+            catch { }
+            // 配色与计划任务状态「Ready」一致：正常=DarkGreen，0/非法=DarkRed
+            SetColoredValue(lblTodayPoints, today, today > 0);
+            SetColoredValue(lblCurrentPoints, cur, cur > 0);
+        }
+
+        // 配置页首次绘制较重（.env 每行一个 CheckBox+Label+TextBox，加上十几个自定义 CheckBox
+        // 的句柄创建与布局）。在窗体已可见后异步创建全部子控件句柄并布局一次，把成本移出启动关键路径；
+        // 真正的“首次像素绘制”在 Shown 中以 Opacity=0 不可见方式强制完成（见 Shown 处理）。
+        private void PrecreateConfigTab()
+        {
+            if (_configPrecreated || _precreating) return;
+            // 用户已经手动切到配置页（或被切到），说明已经绘制过，无需再后台预创建，避免切回闪烁
+            if (tabs.SelectedIndex == 1) { _configPrecreated = true; return; }
+            try
+            {
+                _precreating = true;
+                var sw = Stopwatch.StartNew();
+                tabs.SelectedIndex = 1;
+                tabs.TabPages[1].PerformLayout();
+                configScrollPanel?.CreateControl();           // 递归创建全部子控件句柄
+                configScrollPanel?.PerformLayout();
+                sw.Stop();
+                try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "precreate.txt"), $"precreate_ms={sw.ElapsedMilliseconds}\n"); } catch { }
+                // 预创建完成后切回原页（务必切回，否则用户会看到停在配置页）
+                if (tabs.SelectedIndex == 1) tabs.SelectedIndex = 0;
+            }
+            catch { }
+            finally { _precreating = false; _configPrecreated = true; }
+        }
+
+        // 按窗口宽度的固定比例设置日志页 SplitContainer 的左侧宽度（约 1/3，上下限保护）。
         private void LoadSelectedLog()
         {
             if (lstLogs.SelectedItem == null) return;
@@ -371,8 +574,7 @@ namespace RewardsManager
         }
 
         private void CleanLogs()
-        {
-            if (!Directory.Exists(ProjectPaths.LogsDir)) return;
+        {            if (!Directory.Exists(ProjectPaths.LogsDir)) return;
             var files = Directory.GetFiles(ProjectPaths.LogsDir, "*.log");
             if (files.Length == 0)
             {
@@ -639,6 +841,194 @@ namespace RewardsManager
             };
             b.Click += onClick;
             return b;
+        }
+
+        private static Label MkStatLabel(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                AutoSize = true,
+                Margin = Padding.Empty,
+                BackColor = SystemColors.Control,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+        }
+
+        // 数字彩色：正常(DarkGreen) / 0 或非法(DarkRed)，与计划任务状态「Ready」配色一致
+        private static void SetColoredValue(Label lbl, int value, bool ok)
+        {
+            if (value < 0) { lbl.Text = "—"; lbl.ForeColor = Color.DarkRed; }
+            else { lbl.Text = value.ToString("N0"); lbl.ForeColor = ok ? Color.DarkGreen : Color.DarkRed; }
+        }
+
+        // 更新日志纯文本美化：统一字号（控件 Font 9pt Consolas，不加粗）。
+        // 仅做 Markdown 去噪点（# 标题前缀、**加粗** 星号、--- 分隔线）+ 列表标记(?/- )换 •（保留缩进）+
+        // 链接([文字](url)) 转为「文字 url」保留裸 URL，由 RichTextBox.DetectUrls（.Text 模式）自动变蓝可点击。
+        // 连续空行压缩为最多一个空行，避免间距过疏。
+        private static string ChangelogToPlain(string md)
+        {
+            if (string.IsNullOrEmpty(md)) return "";
+            var outLines = new System.Collections.Generic.List<string>();
+            var re = new System.Text.RegularExpressions.Regex(@"\[([^\]]+)\]\(([^)]+)\)");
+            bool prevBlank = false;
+            foreach (var raw in md.Replace("\r\n", "\n").Split('\n'))
+            {
+                var line = raw.TrimEnd();
+                // 跳过 --- 分隔线（纯装饰）
+                if (line.Replace(" ", "").Replace("-", "").Length == 0 && line.Contains("-")) continue;
+                // 标题：去掉 # 前缀
+                if (line.Length > 0 && line[0] == '#')
+                {
+                    int i = 0; while (i < line.Length && line[i] == '#') i++;
+                    var title = line.Substring(i).Trim();
+                    if (title.Length == 0) continue;
+                    line = title;
+                }
+                // 列表项：? 或 - 开头 → •（保留前导空格缩进）
+                var m = System.Text.RegularExpressions.Regex.Match(line, @"^(\s*)[?-]\s+(.*)$");
+                if (m.Success)
+                {
+                    line = m.Groups[1].Value + "• " + StripBold(m.Groups[2].Value);
+                }
+                else
+                {
+                    line = StripBold(line);
+                }
+                // 链接：[文字](url) → 文字 url（保留裸 URL 供 DetectUrls 识别）
+                line = re.Replace(line, (mm) => mm.Groups[1].Value + " " + mm.Groups[2].Value);
+                bool isBlank = line.Trim().Length == 0;
+                if (isBlank)
+                {
+                    if (prevBlank) continue; // 压缩连续空行
+                    prevBlank = true;
+                }
+                else
+                {
+                    prevBlank = false;
+                }
+                outLines.Add(line);
+            }
+            return string.Join("\n", outLines);
+        }
+
+        private static string StripBold(string s)
+        {
+            return System.Text.RegularExpressions.Regex.Replace(s, @"\*\*(.+?)\*\*", "$1");
+        }
+
+        // 更新日志链接：自己扫描裸 URL，染蓝+下划线，并记录区间供点击命中。
+        // 不依赖 RichTextBox.DetectUrls（在自定义内容/ReadOnly 下不可靠）。
+        private static readonly System.Text.RegularExpressions.Regex UrlRe =
+            new System.Text.RegularExpressions.Regex(@"https?://[^\s，。、）)]+");
+
+        private void HighlightChangelogUrls()
+        {
+            _changelogUrls.Clear();
+            var text = txtChangelog.Text;
+            if (string.IsNullOrEmpty(text)) return;
+            foreach (System.Text.RegularExpressions.Match m in UrlRe.Matches(text))
+            {
+                _changelogUrls.Add((m.Index, m.Index + m.Length, m.Value));
+            }
+            if (_changelogUrls.Count == 0) return;
+            // 临时解除只读以设置颜色，结束后恢复
+            bool ro = txtChangelog.ReadOnly;
+            txtChangelog.ReadOnly = false;
+            try
+            {
+                foreach (var u in _changelogUrls)
+                {
+                    txtChangelog.SelectionStart = u.start;
+                    txtChangelog.SelectionLength = u.end - u.start;
+                    txtChangelog.SelectionColor = Color.Blue;
+                    txtChangelog.SelectionFont = new Font(txtChangelog.Font, FontStyle.Underline);
+                }
+                txtChangelog.SelectionStart = 0;
+                txtChangelog.SelectionLength = 0;
+            }
+            finally
+            {
+                txtChangelog.ReadOnly = ro;
+            }
+        }
+
+        private void TxtChangelog_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left) return;
+            int idx = txtChangelog.GetCharIndexFromPosition(e.Location);
+            var hit = _changelogUrls.FirstOrDefault(u => idx >= u.start && idx < u.end);
+            _changelogDownPos = e.Location;
+            _changelogDownOnUrl = hit.url != null;
+            if (hit.url != null)
+            {
+                // 阻止默认文本选择，直接打开浏览器
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = hit.url,
+                        UseShellExecute = true
+                    });
+                }
+                catch { }
+            }
+        }
+
+        private void TxtChangelog_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left) return;
+            // 纯单击（几乎没移动）且不在链接上：让日志框失焦，停止插入符（|）持续闪烁。
+            // 拖拽选中（发生移动）则保持焦点，便于 Ctrl+C 复制。
+            if (!_changelogDownOnUrl && _changelogDownPos != Point.Empty)
+            {
+                int dx = Math.Abs(e.Location.X - _changelogDownPos.X);
+                int dy = Math.Abs(e.Location.Y - _changelogDownPos.Y);
+                if (dx <= 2 && dy <= 2)
+                {
+                    // 把焦点移到父容器，使 RichTextBox 失去焦点，插入符停止闪烁
+                    txtChangelog.Parent?.Focus();
+                }
+            }
+            _changelogDownPos = Point.Empty;
+        }
+
+        private void TxtChangelog_MouseMove(object sender, MouseEventArgs e)
+        {
+            int idx = txtChangelog.GetCharIndexFromPosition(e.Location);
+            _cursorOnUrl = _changelogUrls.Any(u => idx >= u.start && idx < u.end);
+        }
+
+        // 通过 Application 级消息过滤器拦截 WM_SETCURSOR，彻底压制 RichTextBox 内部强制的 IBeam（| 形）光标。
+        // 比子类化 + 重写 WndProc 更安全（不碰控件内部 WndProc，避免在消息路径中重入崩溃）。
+        // 仅在 MouseMove 中计算链接命中状态并缓存到 _cursorOnUrl，过滤器只做只读 HWND 比较 + 设光标。
+        private const int WM_SETCURSOR = 0x0020;
+        bool IMessageFilter.PreFilterMessage(ref Message m)
+        {
+            if (m.Msg == WM_SETCURSOR && txtChangelog != null && txtChangelog.IsHandleCreated && m.HWnd == txtChangelog.Handle)
+            {
+                Cursor.Current = _cursorOnUrl ? Cursors.Hand : Cursors.Arrow;
+                return true; // 已处理，阻止 RichTextBox 默认设 IBeam
+            }
+            return false;
+        }
+
+        // 账号下拉框右缘对齐「清理日志」按钮右缘：几何坐标法（相对 logLayout 坐标系，两边左 padding 抵消）。
+        // 必须在 toolbar 布局完成后调用（LayoutCompleted 或 Shown 兜底），否则 logLeftFlow 宽度未定导致不生效。
+        private void AlignAccountBox()
+        {
+            if (cmbAccount == null || logLeftFlow == null) return;
+            if (!(cmbAccount.Parent is FlowLayoutPanel ac) || ac.Controls.Count == 0) return;
+            if (!logLeftFlow.IsHandleCreated || logLeftFlow.Width <= 0) return; // 布局未完成，下次 SizeChanged 再试
+            if (!ac.IsHandleCreated) return;
+            if (logLeftFlow.Controls.Count == 0) return;
+            // 直接取「清理日志」按钮(最后一项)的真实右缘做基准（比 leftFlow 整体宽度边缘精确）
+            var cleanBtn = logLeftFlow.Controls[logLeftFlow.Controls.Count - 1];
+            int cleanRightX = cleanBtn.PointToScreen(new Point(cleanBtn.Width, 0)).X;
+            int cellLeftX = ac.PointToScreen(Point.Empty).X;
+            int labelW = ac.Controls[0].PreferredSize.Width; // 账号标签文本宽
+            int target = cleanRightX - cellLeftX - labelW - 4; // 4 = 标签右 margin
+            if (target > 80) cmbAccount.Width = target;
         }
 
         private static void SetDoubleBuffered(Control c)
@@ -1113,7 +1503,7 @@ namespace RewardsManager
             };
             chkSilentWindow = new CheckBox
             {
-                Text = "静默窗口（勾选=静默隐藏　半选=最小化　未选=正常窗口）",
+                Text = "静默窗口（勾选=静默隐藏，半选=最小化，未选=正常窗口）",
                 AutoSize = true,
                 ThreeState = true,
                 Margin = new Padding(0, 2, 0, 2),
@@ -1121,7 +1511,7 @@ namespace RewardsManager
             };
             chkNotify = new CheckBox
             {
-                Text = "Windows 通知（勾选=启动时+完成都通知　半选=仅完成通知　未选=不通知）",
+                Text = "Windows 通知（勾选=启动+完成都通知，半选=仅完成通知，未选=不通知）",
                 AutoSize = true,
                 ThreeState = true,
                 Margin = new Padding(0, 2, 0, 2),
@@ -1188,8 +1578,9 @@ namespace RewardsManager
             grpStatus.StatusValueColor = SystemColors.ControlText;
             lblTaskDetail.Text = "正在查询计划任务状态...";
             lblTaskTriggers.Text = "";
-            await System.Threading.Tasks.Task.Run(() => System.Threading.Thread.Sleep(50)); // 让 UI 先刷新
-
+            // 注意：查询计划任务要冷启动 powershell.exe（CLR 启动约 0.5~1.5s）。本方法已是 async，
+            // 直接 await 后台线程上的查询即可，不要在主线程 DoEvents 等待——否则会阻塞首绘。
+            // 这里用 Task.Run 把 powershell 进程创建与等待放到线程池，UI 在等待期间可正常绘制/响应。
             var (code, output) = await System.Threading.Tasks.Task.Run(() =>
             {
                 string ps = @"$t = Get-ScheduledTask -TaskName 'MicrosoftRewardsScript' -ErrorAction SilentlyContinue; " +
@@ -1404,9 +1795,14 @@ namespace RewardsManager
                 DetectUrls = false,
                 AutoWordSelection = false,
                 ShowSelectionMargin = false,
-                BackColor = Color.White
+                BackColor = Color.White,
+                Cursor = Cursors.Arrow
             };
+            txtChangelog.MouseDown += TxtChangelog_MouseDown;
+            txtChangelog.MouseMove += TxtChangelog_MouseMove;
+            txtChangelog.MouseUp += TxtChangelog_MouseUp;
             grpLog.Controls.Add(txtChangelog);
+            Application.AddMessageFilter(this);
 
             var btnRow = new FlowLayoutPanel
             {
@@ -1470,7 +1866,8 @@ namespace RewardsManager
                 else if (!string.IsNullOrEmpty(published))
                     publishedDate = published.Split('T')[0];
                 lblPublished.Text = $"发布时间: {publishedDate}";
-                txtChangelog.Text = changelog ?? "";
+                try { txtChangelog.Text = ChangelogToPlain(changelog); HighlightChangelogUrls(); }
+                catch { txtChangelog.Text = changelog ?? ""; _changelogUrls.Clear(); }
 
                 if (error != null)
                 {

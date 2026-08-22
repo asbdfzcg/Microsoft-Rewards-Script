@@ -1,0 +1,11 @@
+{
+  "currentVersion": "4.2.3",
+  "latestVersion": "4.2.3",
+  "updateAvailable": false,
+  "skippedVersion": null,
+  "changelog": "# Microsoft Rewards Script v4.2.3\r\n\r\n本版本基于 [TheNetsky/Microsoft-Rewards-Script](https://github.com/TheNetsky/Microsoft-Rewards-Script) 并包含本 fork 的 Windows 图形化管理程序（RewardsManager）与 autorun 一键工具。\r\n\r\n## v4.2.3 更新内容\r\n\r\n- **优化「版本更新」页更新日志渲染**\r\n  - 更新日志中的链接（如 GitHub 仓库、完整更新对比）现在可点击，点击即在默认浏览器打开。\r\n  - 统一正文字号（9pt Consolas），不再忽大忽小。\r\n  - 列表项符号归一：`?` 与 `-` 均显示为 `•`，并保留原有缩进。\r\n  - 去除冗余空行与 `---` 分隔线，排版更紧凑。\r\n- **优化更新日志文本框光标体验**\r\n  - 通过应用级消息过滤器（IMessageFilter）压制 RichTextBox 在文本区域的 IBeam（| 形）光标，常态显示箭头光标。\r\n  - 链接区域悬停显示手型光标，点击直接打开浏览器。\r\n  - 单击非链接区域后自动失焦，避免长时间显示闪烁的插入符；拖拽选中文本仍可 Ctrl+C 复制。\r\n\r\n---\r\n\r\n**Full Changelog**: https://github.com/asbdfzcg/Microsoft-Rewards-Script/compare/v4.2.2...v4.2.3\r\n",
+  "releaseUrl": "https://github.com/asbdfzcg/Microsoft-Rewards-Script/releases/tag/v4.2.3",
+  "publishedAt": "2026-08-22T11:30:00Z",
+  "checkedAt": "2026-08-22T11:30:00.000Z",
+  "error": null
+}
