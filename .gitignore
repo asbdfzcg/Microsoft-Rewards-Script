@@ -37,3 +37,5 @@ geometry.txt
 # --- 临时路径探测测试目录（调试用，非项目源码）---
 scripts/_pathtest/
 scripts/_updtest/
+# --- 用户自动化配置（本地，不入库）---
+autorun/automation-settings.json
