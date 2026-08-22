@@ -301,14 +301,15 @@ try {
     # ---------- 8. 结果判定：依据日志内容而非进程退出码 ----------
     # 注意：本环境下 Start-Process -PassThru 返回的 Process 对象 .ExitCode 恒为 $null，
     # 无法用于判断成功与否；改为依据 node 自身输出的完成标记与积分来判定。
-    # 新版(v4.3.0+) 完成标记为 [RUN-END]，本轮回总 pointsGained；旧版回退 [运行结束]。
+    # 新版(v4.3.0+) 完成标记为 [RUN-END]，经 i18n 翻译为 [运行结束]；本轮回总 pointsGained/获得积分。
     $completed = $outputText -match '\[RUN-END\]' -or $outputText -match '\[运行结束\]'
-    $zeroPoints = $outputText -match 'pointsGained=0(\D|$)' -and $outputText -notmatch 'pointsGained=[1-9]' `
-        -and $outputText -notmatch '获得积分=[1-9]'
+    # 无论日志是英文(pointsGained)还是中文(获得积分)，只要有任一非 0 积分即视为成功
+    $hasPositive = $outputText -match 'pointsGained=[1-9]' -or $outputText -match '获得积分=[1-9]'
+    $zeroPoints = -not $hasPositive
     if ($completed -and -not $zeroPoints) {
         Set-Content -Path $LastRunFile -Value $today -Encoding UTF8
     } else {
-        $reason = if (-not $completed) { '未检测到“[RUN-END]”标记（可能中途崩溃）' } else { '获得积分为 0' }
+        $reason = if (-not $completed) { '未检测到“[运行结束]”标记（可能中途崩溃）' } else { '获得积分为 0' }
         Write-Err "运行失败：$reason（详见 $RunLog）"
         exit 1
     }

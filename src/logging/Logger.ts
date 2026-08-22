@@ -6,6 +6,7 @@ import { sendTelegram } from './Telegram'
 import type { MicrosoftRewardsBot } from '../index'
 import { errorDiagnostic } from '../util/ErrorDiagnostic'
 import type { LogFilter } from '../interface/Config'
+import { translateTitle, translateBody, translateLevel } from './i18n'
 
 export type Platform = boolean | 'main'
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug'
@@ -95,7 +96,9 @@ export class Logger {
         }
 
         const badge = platformBadge(isMobile)
-        const consoleStr = `[${now}] [${userName}] [${levelTag}] ${badge} [${title}] ${formatted}`
+        const zhTitle = translateTitle(title)
+        const zhBody = translateBody(formatted)
+        const consoleStr = `[${now}] [${userName}] [${translateLevel(levelTag)}] ${badge} [${zhTitle}] ${zhBody}`
 
         let logColor: ColorKey | undefined = color
 

@@ -505,26 +505,26 @@ namespace RewardsManager
                         var lines = File.ReadAllLines(f.FullName);
                         for (int i = lines.Length - 1; i >= 0; i--)
                         {
-                            // 优先新格式（按账号归集，能精确匹配选中账号）
-                            if (lines[i].Contains("[ACCOUNT-END]")) { line = lines[i]; break; }
+                            // 优先新格式（按账号归集，能精确匹配选中账号）：英文 [ACCOUNT-END] 或中文 [账户结束]
+                            if (lines[i].Contains("[ACCOUNT-END]") || lines[i].Contains("[账户结束]")) { line = lines[i]; break; }
                         }
                         if (line == null)
                         {
-                            // 回退：旧格式整轮汇总行
+                            // 回退：旧格式整轮汇总行（英文 [RUN-END] 或中文 [运行结束]）
                             for (int i = lines.Length - 1; i >= 0; i--)
                             {
-                                if (lines[i].Contains("[运行结束]")) { line = lines[i]; break; }
+                                if (lines[i].Contains("[运行结束]") || lines[i].Contains("[RUN-END]")) { line = lines[i]; break; }
                             }
                         }
                         if (line == null) continue;
 
-                        // 账号过滤：旧格式取第二个中括号内容；新格式从消息提取 "Completed account: <email>"
+                        // 账号过滤：新格式从消息提取 "Completed account: <email>" 或中文 "账户处理完成: <email>"
                         if (selAccount != null)
                         {
                             bool match = false;
-                            if (line.Contains("[ACCOUNT-END]"))
+                            if (line.Contains("[ACCOUNT-END]") || line.Contains("[账户结束]"))
                             {
-                                var mEmail = System.Text.RegularExpressions.Regex.Match(line, @"Completed account:\s*([^\s|]+)");
+                                var mEmail = System.Text.RegularExpressions.Regex.Match(line, @"(?:Completed account|账户处理完成):\s*([^\s|]+)");
                                 if (mEmail.Success)
                                 {
                                     string acc = mEmail.Groups[1].Value;

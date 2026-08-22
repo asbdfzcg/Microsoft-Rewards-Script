@@ -24,5 +24,6 @@ release/*.zip
 
 # 运行产物与 IDE 缓存（不纳入版本控制）
 autorun/.last-run-date
+autorun/.run-lock
 autorun/*.old
 manager/RewardsManager/.vs/
