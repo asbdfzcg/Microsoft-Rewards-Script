@@ -26,8 +26,8 @@ $Log      = Join-Path $env:TEMP "mrs-build-summary.txt"
 function Log($m) { $m | Out-File $Log -Append -Encoding utf8; Write-Host $m }
 
 # Python 路径：删除与压缩都用它，绕开 PowerShell 回收站拦截器对 Remove-Item 的拦截
-$py = @(Get-Command python, py -ErrorAction SilentlyContinue)[0]
-if (-not $py) { $py = "C:/Users/asbdf/.workbuddy/binaries/python/versions/3.13.12/python.exe" }
+$py = @(Get-Command python, py, python3 -ErrorAction SilentlyContinue)[0]
+if (-not $py) { throw "未找到 python / py / python3，请先安装并加入 PATH。" }
 
 # 读版本号
 $pkg     = Get-Content (Join-Path $RepoRoot "package.json") -Raw | ConvertFrom-Json

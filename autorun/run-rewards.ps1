@@ -155,7 +155,7 @@ try {
     $machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath    = [System.Environment]::GetEnvironmentVariable('Path', 'User')
     $env:Path = ($machinePath + ';' + $userPath -split ';' |
-        Where-Object { $_ -and $_ -notmatch 'TRAE|workbuddy[\\/]binaries' } |
+        Where-Object { $_ -and $_ -notmatch '[\\/]binaries$|TRAE' } |
         Select-Object -Unique) -join ';'
 
     # ---------- 4. 时间检查 ----------

@@ -28,7 +28,7 @@ geometry.txt
 # 例外：随仓库分发的预编译管理程序（framework-dependent，目标机需装 .NET 8 桌面运行时）
 !autorun/RewardsManager.exe
 
-# --- 工作区本地记忆 / 技能（WorkBuddy 工作区数据，不入库）---
+# --- 工作区本地数据（不入库）---
 /.workbuddy/
 
 # --- release 构建产物（zip 仅作为 GitHub Release Asset 发布，不入库）---

@@ -63,7 +63,7 @@ namespace RewardsManager
         {
             try
             {
-                var dir = Path.Combine("D:\\Users\\asbdf\\Documents\\Microsoft Rewards Script\\.workbuddy", "RewardsManager");
+                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MicrosoftRewardsScript", "Logs");
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "crash.log"), $"{DateTime.Now:O} {kind}\n{ex}\n");
             }

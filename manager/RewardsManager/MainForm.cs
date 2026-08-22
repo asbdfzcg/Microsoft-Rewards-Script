@@ -2191,7 +2191,7 @@ namespace RewardsManager
                 "if (-not (Test-Path $Target)) { Log \"ERROR: Target directory not found.\"; exit 1 }",
                 "if (-not (Test-Path $Self)) { Log \"ERROR: Self executable not found.\"; exit 1 }",
                 "# 覆盖安装（保留用户数据）",
-                "$excludedDirs = @('node_modules', 'logs', '.git', '.workbuddy')",
+                "$excludedDirs = @('node_modules', 'logs', '.git', 'data')",
                 "$excludedFiles = @('.env', 'config.json', 'update-status.json', 'update-skipped.json')",
                 "$args1 = @($Source, $Target, '/E', '/R:2', '/W:2', '/NP', '/NFL', '/NDL')",
                 "foreach ($d in $excludedDirs) { $args1 += '/XD'; $args1 += $d }",
