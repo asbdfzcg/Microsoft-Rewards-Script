@@ -3,7 +3,7 @@
   "latestVersion": "4.2.3",
   "updateAvailable": false,
   "skippedVersion": null,
-  "changelog": "# Microsoft Rewards Script v4.2.3\r\n\r\n本版本基于 [TheNetsky/Microsoft-Rewards-Script](https://github.com/TheNetsky/Microsoft-Rewards-Script) 并包含本 fork 的 Windows 图形化管理程序（RewardsManager）与 autorun 一键工具。\r\n\r\n## v4.2.3 更新内容\r\n\r\n- **更新日志状态条新增积分展示**\r\n  - 主界面状态条显示「今日获得」与「当前积分」，数字采用彩色显示（正常为绿色，0 或异常为红色），与计划任务状态配色一致。\r\n  - 账号下拉框显示完整邮箱，右侧与「清理日志」按钮对齐。\r\n- **静默运行与通知**\r\n  - 支持静默窗口模式（勾选=静默隐藏，半选=最小化，未选=正常窗口）。\r\n  - 支持 Windows 通知（勾选=启动+完成都通知，半选=仅完成通知，未选=不通知）。\r\n  - 修复启动通知不弹与误报“运行失败”导致 last-run-date 不更新的问题。\r\n- **更新日志链接可点击**\r\n  - 更新日志中的链接（如 GitHub 仓库、完整更新对比）点击即在默认浏览器打开。\r\n  - 列表项符号 `?` 与 `-` 统一显示为 `•`，排版更紧凑。\r\n\r\n---\r\n\r\n**Full Changelog**: https://github.com/asbdfzcg/Microsoft-Rewards-Script/compare/v4.2.2...v4.2.3\r\n",
+  "changelog": "# Microsoft Rewards Script v4.2.3\r\n\r\n本版本基于 [TheNetsky/Microsoft-Rewards-Script](https://github.com/TheNetsky/Microsoft-Rewards-Script) 并包含本 fork 的 Windows 图形化管理程序（RewardsManager）与 autorun 一键工具。\r\n\r\n## 更新内容\r\n\r\n- **更新日志状态条新增积分展示**：\r\n  - 主界面状态条显示「今日获得」与「当前积分」。\r\n  - 账号下拉框显示完整邮箱。\r\n- **静默运行与通知**：\r\n  - 支持静默窗口模式。\r\n  - 支持 Windows 通知。\r\n  - 修复启动通知不弹与误报“运行失败”导致 last-run-date 不更新的问题。\r\n- **更新日志链接可点击**：\r\n  - 更新日志中的链接（GitHub 仓库、完整更新对比）点击即在默认浏览器打开。\r\n\r\n**Full Changelog**: https://github.com/asbdfzcg/Microsoft-Rewards-Script/compare/v4.2.2...v4.2.3\r\n",
   "releaseUrl": "https://github.com/asbdfzcg/Microsoft-Rewards-Script/releases/tag/v4.2.3",
   "publishedAt": "2026-08-22T11:30:00Z",
   "checkedAt": "2026-08-22T11:30:00.000Z",
