@@ -267,21 +267,17 @@ try {
             -NoNewWindow -RedirectStandardOutput $RunLog -RedirectStandardError $errLog `
             -PassThru -ErrorAction Stop
 
-        # 启动通知（延迟读取日志，兼容无法实时捕获输出行的场景）
+        # 启动通知：node 把 stdout 块缓冲到重定向文件，运行初期日志尚未刷出，
+        # 因此【不】依赖读取 run 日志来触发——直接发送“已启动”通知，确保用户必定收到。
+        # （完成通知在 WaitForExit 之后读取，此时缓冲已刷出，可正常拿到收尾行。）
         if ($notifyMode -eq 'both') {
-            Start-Sleep -Seconds 3
-            $startLines = @()
-            foreach ($l in (Get-Content -Path $RunLog -Encoding UTF8 -ErrorAction SilentlyContinue)) {
-                if ($l -match '\[运行开始\]' -or $l -match '\[账户开始\]') { $startLines += $l }
-            }
-            if ($startLines.Count -gt 0) {
-                Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message ($startLines -join "`n")
-            }
+            $mode = if ($Force) { '手动' } else { '自动（计划任务）' }
+            $startMsg = "已在后台启动（PID=$($proc.Id)，模式=$mode）。`n预计运行约 30-40 分钟，完成后将再次通知。"
+            Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message $startMsg
         }
 
         # 等待 node 进程结束（保活，确保后台进程不被父脚本退出误杀）
         $proc.WaitForExit()
-        $exitCode = $proc.ExitCode
         if (Test-Path $errLog) {
             try { Add-Content -Path $RunLog -Value (Get-Content -Path $errLog -Raw -Encoding UTF8) -Encoding UTF8 } catch {}
             Remove-Item $errLog -Force -ErrorAction SilentlyContinue
@@ -301,12 +297,16 @@ try {
 
     $outputText = Get-Content -Path $RunLog -Raw -Encoding UTF8
 
-    # ---------- 8. 结果判定：退出码 + 获得积分检查 ----------
+    # ---------- 8. 结果判定：依据日志内容而非进程退出码 ----------
+    # 注意：本环境下 Start-Process -PassThru 返回的 Process 对象 .ExitCode 恒为 $null，
+    # 无法用于判断成功与否；改为依据 node 自身输出的完成标记与积分来判定。
+    $completed = $outputText -match '\[运行结束\]'
     $zeroPoints = $outputText -match '获得积分=0\D' -and $outputText -notmatch '获得积分=[1-9]'
-    if ($exitCode -eq 0 -and -not $zeroPoints) {
+    if ($completed -and -not $zeroPoints) {
         Set-Content -Path $LastRunFile -Value $today -Encoding UTF8
     } else {
-        Write-Err "运行失败：退出码=$exitCode，获得积分为0=$zeroPoints（详见 $RunLog）"
+        $reason = if (-not $completed) { '未检测到“[运行结束]”标记（可能中途崩溃）' } else { '获得积分为 0' }
+        Write-Err "运行失败：$reason（详见 $RunLog）"
         exit 1
     }
 }
