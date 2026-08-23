@@ -219,17 +219,12 @@ try {
 
     # 运行 node：区分手动/自动场景。
     # 手动运行（-Force）时直接在前台运行，输出实时显示在终端，同时写入日志文件；
-    # 计划任务运行时重定向到日志文件，避免桌面弹窗，且不受 ConstrainedLanguage 限制。
+    # 计划任务运行时用前台管道逐行写入日志文件（实时增长），不弹窗。
     # 脚本路径（可能含空格）。
     $scriptPath = Join-Path $ProjectDir 'dist\index.js'
-    # 手动模式用数组 splat：`& $nodeExe @nodeArgs` 时 PowerShell 才会把每个元素当成独立参数；
+    # 用数组 splat：`& $nodeExe @nodeArgs` 时 PowerShell 才会把每个元素当成独立参数；
     # 若用拼接字符串，`&` 会把整串当成单个参数，导致 node 报 bad option。
     $nodeArgs = @('--no-warnings', $scriptPath)
-    # 自动模式用 Start-Process -ArgumentList：数组元素含空格时不会被自动加引号，
-    # 路径会在空格处被截断（Cannot find module '...Microsoft'）。因此单独构造一个
-    # 带引号包裹路径的字符串参数——这是 8/17、8/18 成功运行时的写法。
-    $nodeArgString = "--no-warnings `"$scriptPath`""
-    $errLog = $RunLog + '.err'
     if ($Force) {
         # 手动模式：前台运行 + Tee 到日志。
         Write-Host "正在启动 Microsoft Rewards Script（PID=$pid）..." -ForegroundColor Cyan
@@ -245,43 +240,32 @@ try {
                 $writer.WriteLine($line)
                 $writer.Flush()
                 Write-Host $line
+                # 强制刷出 .NET 控制台缓冲，避免 Windows Terminal 渲染滞后（终端实时）
+                try { [Console]::Out.Flush() } catch {}
             }
         } finally {
             $writer.Close()
         }
         $exitCode = $LASTEXITCODE
     } else {
-        # 自动模式：用 Start-Process 把输出重定向到 run 日志文件。
-        # 注意：不要直接用 [System.Diagnostics.Process] 的 OutputDataReceived 事件——
-        # 计划任务以 Highest 权限运行时，系统可能将脚本置于 ConstrainedLanguage 模式，
-        # 此时 New-Object 出来的 Process 对象无法访问 OutputDataReceived 等成员，会抛
-        # “找不到属性 OutputDataReceived”导致整脚本中止。Start-Process 由 PowerShell 引擎
-        # 内部执行，不受脚本的 ConstrainedLanguage 限制，重定向可靠。
-        # 注意：RedirectStandardOutput 与 RedirectStandardError 不能指向同一文件，
-        # 否则 PowerShell 会报“RedirectStandardOutput 和 RedirectStandardError 相同”。
-        # 因此 stderr 单独写入 .err 文件，进程结束后合并进主日志，便于统一解析。
-        # 异步启动（不带 -Wait）：进程在后台运行，父脚本继续往下走，
-        # 这样“启动通知”能在运行初期实时弹出；随后用 WaitForExit 保活，
-        # 避免父脚本提前退出误杀后台 node 进程。
-        $proc = Start-Process -FilePath $nodeExe -ArgumentList $nodeArgString -WorkingDirectory $ProjectDir `
-            -NoNewWindow -RedirectStandardOutput $RunLog -RedirectStandardError $errLog `
-            -PassThru -ErrorAction Stop
-
-        # 启动通知：node 把 stdout 块缓冲到重定向文件，运行初期日志尚未刷出，
-        # 因此【不】依赖读取 run 日志来触发——直接发送“已启动”通知，确保用户必定收到。
-        # （完成通知在 WaitForExit 之后读取，此时缓冲已刷出，可正常拿到收尾行。）
+        # 自动模式：前台管道 + 逐行 Tee 到日志（文件实时增长，不再等进程退出才写入）。
+        # 注意：不能用 Start-Process -RedirectStandardOutput——实测其重定向文件在进程运行期间
+        # 始终为空，退出后才一次性写入，导致日志/状态栏无法实时反映进度。
+        # 这里用纯 PowerShell 管道（& $nodeExe 2>&1 | ForEach-Object）+ Add-Content：
+        #   - 管道/ForEach-Object/Add-Content 均为语言与核心 cmdlet，不受计划任务
+        #     ConstrainedLanguage 模式限制（不像 New-Object Process 的成员访问会抛“找不到属性”）；
+        #   - 2>&1 天然合并 stdout/stderr，无需 Start-Process 那样单独 .err 再合并；
+        #   - Add-Content 每行立即落盘，日志实时可读。
+        # 启动通知在管道开始前发送（前台管道开始后即阻塞，无“启动后间隙”）。
         if ($notifyMode -eq 'both') {
             $mode = if ($Force) { '手动' } else { '自动（计划任务）' }
-            $startMsg = "已在后台启动（PID=$($proc.Id)，模式=$mode）。`n预计运行约 30-40 分钟，完成后将再次通知。"
+            $startMsg = "自动运行已启动（模式=$mode）。`n预计运行约 30-40 分钟，完成后将再次通知。"
             Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message $startMsg
         }
-
-        # 等待 node 进程结束（保活，确保后台进程不被父脚本退出误杀）
-        $proc.WaitForExit()
-        if (Test-Path $errLog) {
-            try { Add-Content -Path $RunLog -Value (Get-Content -Path $errLog -Raw -Encoding UTF8) -Encoding UTF8 } catch {}
-            Remove-Item $errLog -Force -ErrorAction SilentlyContinue
+        & $nodeExe @nodeArgs 2>&1 | ForEach-Object {
+            Add-Content -Path $RunLog -Value "$_" -Encoding UTF8
         }
+        $exitCode = $LASTEXITCODE
     }
 
     # 完成通知（重新解析日志，确保收尾行拿全）
