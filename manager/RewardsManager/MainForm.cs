@@ -45,6 +45,8 @@ namespace RewardsManager
         private Label lblCurrentPoints;  // 当前积分
         private ComboBox cmbAccount;     // 选择账号
         private FlowLayoutPanel logLeftFlow;  // 工具栏左侧按钮组(刷新/打开目录/清理日志)，用于账号框右对齐
+        private Button btnStop;                // 停止按钮(字段，便于定时器控制 Enabled)
+        private System.Windows.Forms.Timer runStateTimer; // 轮询“是否有正在运行的任务”以切换停止按钮可用性
         private TableLayoutPanel statRowPanel; // 顶部状态条(账号/今日获得/当前积分)，用于对齐刷新
 
         // 配置页
@@ -179,6 +181,13 @@ namespace RewardsManager
                 // 计划任务状态查询要冷启动 powershell.exe（CLR 启动 0.5~1.5s），放到后台线程，
                 // 不阻塞首绘；其内部已是 async，这里仅触发，不 await。
                 RefreshTaskStatus();
+
+                // 启动“停止按钮可用性”轮询：每 2 秒探测是否有正在运行的任务（手动/自动），
+                // 有则启用停止按钮，无则灰色不可用。定时器在 UI 线程触发 Tick，直接改 Enabled 安全。
+                runStateTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+                runStateTimer.Tick += (_, _) => UpdateStopButtonState();
+                runStateTimer.Start();
+                UpdateStopButtonState(); // 首帧立即同步一次
             };
             Shown += (_, _) =>
             {
@@ -366,7 +375,9 @@ namespace RewardsManager
                 Margin = Padding.Empty
             };
             var btnRun = MkButton("运行", (_, _) => RunManual());
-            var btnStop = MkButton("停止", (_, _) => StopManual());
+            btnStop = MkButton("停止", (_, _) => StopManual());
+            // 初始灰色不可用：由 runStateTimer 每 2 秒探测“是否有正在运行的任务”来启用/禁用。
+            btnStop.Enabled = false;
             rightFlow.Controls.Add(btnRun);
             rightFlow.Controls.Add(btnStop);
 
@@ -658,12 +669,44 @@ namespace RewardsManager
             });
         }
 
+        /// <summary>
+        /// 判断当前是否有正在运行的任务（手动或自动）。
+        /// 无论手动(run-manual.bat)还是自动(计划任务)运行，真正执行任务的都是 node.exe 跑 dist/index.js，
+        /// 因此以该进程是否存在作为“运行中”的权威信号；`.run-lock` 作为冗余补充（防止 node 已退出但锁未删的极小窗口误判）。
+        /// </summary>
+        private bool IsTaskRunning()
+        {
+            try
+            {
+                using (var searcher = new System.Management.ManagementObjectSearcher(
+                    "SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name='node.exe'"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        var cmd = obj["CommandLine"]?.ToString() ?? "";
+                        if (cmd.Contains("dist\\index.js") || cmd.Contains("dist/index.js"))
+                            return true;
+                    }
+                }
+            }
+            catch { }
+            // 冗余：锁文件存在（且 node 不在）也可疑为刚结束但锁未删，不单独据此判定，避免误杀。
+            return false;
+        }
+
         private void StopManual()
         {
             try
             {
+                if (!IsTaskRunning())
+                {
+                    MessageBox.Show("当前没有正在运行的任务。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    UpdateStopButtonState();
+                    return;
+                }
+
                 int killed = 0;
-                // 结束 node.exe 中运行 dist\index.js 的进程
+                // 结束 node.exe 中运行 dist\index.js 的进程（含整棵进程树，避免残留子进程）
                 using (var searcher = new System.Management.ManagementObjectSearcher(
                     "SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name='node.exe'"))
                 {
@@ -675,14 +718,15 @@ namespace RewardsManager
                             try
                             {
                                 var pid = Convert.ToInt32(obj["ProcessId"]);
-                                System.Diagnostics.Process.GetProcessById(pid).Kill();
+                                var proc = System.Diagnostics.Process.GetProcessById(pid);
+                                try { proc.Kill(true); } catch { proc.Kill(); }
                                 killed++;
                             }
                             catch { }
                         }
                     }
                 }
-                // 结束运行 run-rewards.ps1 的 powershell 进程
+                // 结束运行 run-rewards.ps1 的 powershell 父进程（手动与自动共用此脚本）
                 using (var searcher = new System.Management.ManagementObjectSearcher(
                     "SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name='powershell.exe' OR Name='pwsh.exe'"))
                 {
@@ -694,22 +738,33 @@ namespace RewardsManager
                             try
                             {
                                 var pid = Convert.ToInt32(obj["ProcessId"]);
-                                System.Diagnostics.Process.GetProcessById(pid).Kill();
+                                var proc = System.Diagnostics.Process.GetProcessById(pid);
+                                try { proc.Kill(true); } catch { proc.Kill(); }
                                 killed++;
                             }
                             catch { }
                         }
                     }
                 }
-                // 清理锁文件
+                // 清理锁文件（node 已被杀，锁不再有效）
                 var lockFile = Path.Combine(ProjectPaths.AutorunDir, ".run-lock");
                 try { if (File.Exists(lockFile)) File.Delete(lockFile); } catch { }
-                MessageBox.Show(killed > 0 ? $"已停止 {killed} 个相关进程。" : "没有正在运行的手动任务。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                UpdateStopButtonState();
+                RefreshLogs();
+                MessageBox.Show(killed > 0 ? $"已停止 {killed} 个相关进程。" : "已发送停止信号。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("停止失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>根据当前是否有任务在跑，刷新停止按钮的可用状态</summary>
+        private void UpdateStopButtonState()
+        {
+            if (btnStop != null && !btnStop.IsDisposed)
+                btnStop.Enabled = IsTaskRunning();
         }
 
         // ============================================================
