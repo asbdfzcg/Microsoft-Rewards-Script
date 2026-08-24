@@ -126,16 +126,32 @@ function Send-Toast([string]$title, [string]$message) {
 
 # ---------- 1. 窗口可见性 ----------
 # 手动运行时（-Force）保持窗口在前台，方便查看实时输出；
-# 计划任务/静默运行时最小化 Windows Terminal，避免占用桌面。
+# 计划任务/静默运行时按 automation-settings.json 的 windowMode 处理 Windows Terminal 窗口：
+#   silent    = 完全隐藏
+#   minimized = 最小化到任务栏（默认，用户可点开看实时输出）
+#   normal    = 正常显示
 if (-not $Force) {
-    Start-Sleep -Seconds 1
+    # wt.exe 冷启动比 powershell 慢，多等一会确保窗口句柄可用
+    Start-Sleep -Seconds 3
     try {
+        $wmSettingsFile = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'automation-settings.json'
+        $windowMode = 'minimized'
+        if (Test-Path $wmSettingsFile) {
+            try {
+                $wm = Get-Content $wmSettingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                if ($wm.windowMode) { $windowMode = [string]$wm.windowMode }
+            } catch {}
+        }
         Add-Type -Namespace Win32 -Name WindowApi -MemberDefinition @'
             [System.Runtime.InteropServices.DllImport("user32.dll")]
             public static extern bool ShowWindowAsync(System.IntPtr hWnd, int nCmdShow);
 '@
         $wtProc = Get-Process | Where-Object { $_.ProcessName -match 'WindowsTerminal|wt' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-        if ($wtProc) { [Win32.WindowApi]::ShowWindowAsync($wtProc.MainWindowHandle, 6) | Out-Null } # 6 = SW_MINIMIZE
+        if ($wtProc) {
+            # 0 = SW_HIDE, 6 = SW_MINIMIZE, 9 = SW_RESTORE
+            $cmd = switch ($windowMode) { 'silent' { 0 } 'normal' { 9 } default { 6 } }
+            [Win32.WindowApi]::ShowWindowAsync($wtProc.MainWindowHandle, $cmd) | Out-Null
+        }
     } catch {}
 }
 
@@ -263,7 +279,12 @@ try {
             Send-Toast -Title 'Microsoft Rewards Script 已启动' -Message $startMsg
         }
         & $nodeExe @nodeArgs 2>&1 | ForEach-Object {
-            Add-Content -Path $RunLog -Value "$_" -Encoding UTF8
+            $line = "$_"
+            # 日志文件实时写入（C# 状态栏/通知解析用）
+            Add-Content -Path $RunLog -Value $line -Encoding UTF8
+            # 同时输出到 wt.exe 终端窗口（用户点开可实时查看；silent 模式窗口隐藏则无可见效果）
+            Write-Host $line
+            try { [Console]::Out.Flush() } catch {}
         }
         $exitCode = $LASTEXITCODE
     }

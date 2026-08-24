@@ -1,5 +1,5 @@
 ﻿# setup-task.ps1 - 创建/覆盖 MicrosoftRewardsScript 计划任务（需管理员权限）
-# 触发器：每天 7:00 + 用户登录时；使用 powershell.exe 启动，窗口模式由 automation-settings.json 决定
+# 触发器：每天 7:00 + 用户登录时；使用 wt.exe(Windows Terminal) 启动，窗口模式由 automation-settings.json 决定
 
 $ErrorActionPreference = 'Stop'
 $AutorunDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -8,9 +8,9 @@ $TaskName   = 'MicrosoftRewardsScript'
 
 if (-not (Test-Path $RunScript)) { throw "找不到运行脚本: $RunScript" }
 
-# 不再使用 Windows Terminal 启动：wt 会在桌面左下角留下一个可见的
-# PseudoConsoleWindow（灰色方块）。改为直接用 powershell.exe 启动，窗口模式由
-# automation-settings.json 中的 windowMode 决定（silent=隐藏 / minimized=最小化 / normal=正常）。
+# 不再使用 powershell.exe 直接启动：其 conhost 窗口空白且无法实时显示输出。
+# 改为 wt.exe(Windows Terminal) 启动：实时显示输出，窗口状态由 run-rewards.ps1
+# 按 automation-settings.json 的 windowMode 控制（silent=隐藏 / minimized=最小化 / normal=正常显示）。
 $windowMode = 'silent'   # 默认静默，与原有行为一致
 $settingsFile = Join-Path $AutorunDir 'automation-settings.json'
 if (Test-Path $settingsFile) {
@@ -19,13 +19,12 @@ if (Test-Path $settingsFile) {
         if ($s.windowMode) { $windowMode = [string]$s.windowMode }
     } catch {}
 }
-$windowStyle = switch ($windowMode) {
-    'minimized' { 'Minimized' }
-    'normal'    { 'Normal' }
-    default     { 'Hidden' }
-}
-$execPath = 'powershell.exe'
-$execArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle $windowStyle -File `"$RunScript`""
+
+# 用 Windows Terminal (wt.exe) 启动：新版终端显示实时输出，窗口状态由 run-rewards.ps1 按
+# automation-settings.json 的 windowMode 控制（silent=隐藏 / minimized=最小化 / normal=正常显示）。
+# 参数与 run-manual.bat 一致（-w 0 强制新建独立窗口，nt = new-tab），便于精确控制本任务的窗口状态。
+$execPath = 'wt.exe'
+$execArgs = "-w 0 nt powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$RunScript`""
 
 # 触发器 1：每天 7:00
 $triggerDaily = New-ScheduledTaskTrigger -Daily -At '07:00'
