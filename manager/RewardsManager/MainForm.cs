@@ -671,11 +671,14 @@ namespace RewardsManager
 
         /// <summary>
         /// 判断当前是否有正在运行的任务（手动或自动）。
-        /// 无论手动(run-manual.bat)还是自动(计划任务)运行，真正执行任务的都是 node.exe 跑 dist/index.js，
-        /// 因此以该进程是否存在作为“运行中”的权威信号；`.run-lock` 作为冗余补充（防止 node 已退出但锁未删的极小窗口误判）。
+        /// 手动(run-manual.bat)与自动(计划任务)运行都会启动 node.exe 跑 dist/index.js 并创建 .run-lock。
+        /// 注意：计划任务以 Highest 权限在另一会话启动进程，当前用户会话的 WMI 查询读不到其
+        /// CommandLine（返回空串），因此不能只依赖命令行匹配；`.run-lock` 文件系统全局可见，
+        /// 是跨会话最可靠的信号（与 run-rewards.ps1 的锁逻辑一致：3 小时内视为活跃）。
         /// </summary>
         private bool IsTaskRunning()
         {
+            // 信号 1：node.exe 命令行含 dist/index.js（手动运行场景可读）
             try
             {
                 using (var searcher = new System.Management.ManagementObjectSearcher(
@@ -690,7 +693,18 @@ namespace RewardsManager
                 }
             }
             catch { }
-            // 冗余：锁文件存在（且 node 不在）也可疑为刚结束但锁未删，不单独据此判定，避免误杀。
+            // 信号 2：.run-lock 存在且创建时间在 3 小时内（自动/手动运行都会创建，跨会话可靠）
+            try
+            {
+                var lockFile = Path.Combine(ProjectPaths.AutorunDir, ".run-lock");
+                if (File.Exists(lockFile))
+                {
+                    var age = DateTime.Now - File.GetLastWriteTime(lockFile);
+                    if (age.TotalHours < 3)
+                        return true;
+                }
+            }
+            catch { }
             return false;
         }
 
@@ -705,8 +719,31 @@ namespace RewardsManager
                     return;
                 }
 
+                var lockFile = Path.Combine(ProjectPaths.AutorunDir, ".run-lock");
                 int killed = 0;
-                // 结束 node.exe 中运行 dist\index.js 的进程（含整棵进程树，避免残留子进程）
+                var killedPids = new System.Collections.Generic.HashSet<int>();
+
+                // 方式 1（首选）：读锁文件里的宿主 ps1 PID，用 taskkill /T 杀整棵进程树（ps1→node）。
+                // 锁文件由 run-rewards.ps1 写入自身 $pid；跨会话（计划任务 Highest 权限）也能精确定位，
+                // 避免当前会话 WMI 读不到另一会话进程 CommandLine 的问题。
+                // 杀 Highest 权限进程需要管理员权限，走 UAC 提权（RunElevated）。
+                int hostPid = -1;
+                try
+                {
+                    if (File.Exists(lockFile))
+                    {
+                        var raw = File.ReadAllText(lockFile).Trim();
+                        if (int.TryParse(raw, out hostPid) && hostPid > 0)
+                        {
+                            ProcessHelper.RunElevated($"-NoProfile -Command \"taskkill /PID {hostPid} /T /F\"");
+                            killed++;
+                            killedPids.Add(hostPid);
+                        }
+                    }
+                }
+                catch { }
+
+                // 方式 2（补充）：结束 node.exe 中运行 dist\index.js 的进程（含整棵进程树）
                 using (var searcher = new System.Management.ManagementObjectSearcher(
                     "SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name='node.exe'"))
                 {
@@ -718,9 +755,12 @@ namespace RewardsManager
                             try
                             {
                                 var pid = Convert.ToInt32(obj["ProcessId"]);
-                                var proc = System.Diagnostics.Process.GetProcessById(pid);
-                                try { proc.Kill(true); } catch { proc.Kill(); }
-                                killed++;
+                                if (killedPids.Add(pid))
+                                {
+                                    var proc = System.Diagnostics.Process.GetProcessById(pid);
+                                    try { proc.Kill(true); } catch { proc.Kill(); }
+                                    killed++;
+                                }
                             }
                             catch { }
                         }
@@ -738,16 +778,18 @@ namespace RewardsManager
                             try
                             {
                                 var pid = Convert.ToInt32(obj["ProcessId"]);
-                                var proc = System.Diagnostics.Process.GetProcessById(pid);
-                                try { proc.Kill(true); } catch { proc.Kill(); }
-                                killed++;
+                                if (killedPids.Add(pid))
+                                {
+                                    var proc = System.Diagnostics.Process.GetProcessById(pid);
+                                    try { proc.Kill(true); } catch { proc.Kill(); }
+                                    killed++;
+                                }
                             }
                             catch { }
                         }
                     }
                 }
-                // 清理锁文件（node 已被杀，锁不再有效）
-                var lockFile = Path.Combine(ProjectPaths.AutorunDir, ".run-lock");
+                // 清理锁文件（进程已杀，锁不再有效）
                 try { if (File.Exists(lockFile)) File.Delete(lockFile); } catch { }
 
                 UpdateStopButtonState();

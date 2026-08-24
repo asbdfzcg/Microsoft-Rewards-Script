@@ -164,7 +164,9 @@ if (Test-Path $LockFile) {
     }
     Remove-Item $LockFile -Force -ErrorAction SilentlyContinue # 残留锁（>3小时）自动清理
 }
+# 锁文件同时记录本 ps1 的 PID，供 RewardsManager 的“停止”按钮精确定位并结束整个进程树
 New-Item -ItemType File -Path $LockFile -Force | Out-Null
+Set-Content -Path $LockFile -Value "$pid" -Encoding UTF8
 
 try {
     # ---------- 3. 刷新 PATH，移除可能干扰的条目，让系统 Node 可被 PATH 找到 ----------
